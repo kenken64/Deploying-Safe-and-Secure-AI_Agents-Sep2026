@@ -46,16 +46,19 @@ def place(state: dict, items: list[Content]) -> dict:
     VULNERABLE (split off): everything lands in one flat `context` list, in
     arrival order, indistinguishable.
 
-    SECURE (split on): trusted and untrusted are different fields, and content
-    can only enter the trusted zone if its ORIGIN says it may.
+    SECURE (split on): STUDENT EXERCISE - not implemented yet. (See
+    tutorials/v08-state-poisoning.md.) Sort `items` into `trusted` and
+    `untrusted` lists by `c.origin in TRUSTED_ORIGINS`, converting each with
+    `to_dict(c)`, then return `{"context": trusted + untrusted, "untrusted":
+    untrusted}` - different fields, never merged.
     """
     if not settings.on("SECURE_STATE_SPLIT"):
         return {"context": [to_dict(c) for c in items]}
 
-    trusted, untrusted = [], []
-    for c in items:
-        (trusted if c.origin in TRUSTED_ORIGINS else untrusted).append(to_dict(c))
-    return {"context": trusted + untrusted, "untrusted": untrusted}
+    raise NotImplementedError(
+        "state.place: TODO - split items into trusted/untrusted by origin "
+        "(see tutorials/v08-state-poisoning.md)"
+    )
 
 
 def assert_containment(state: dict, session) -> None:
@@ -86,7 +89,7 @@ def assert_containment(state: dict, session) -> None:
 
 
 def revalidate(state: dict, session) -> dict:
-    """The gate BETWEEN nodes.  (slide 11)
+    """The gate BETWEEN nodes.  (slide 11) STUDENT EXERCISE - not implemented yet.
 
     Without this, a payload that lands at node 1 is carried forward to nodes 2, 3
     and 4 by the agent itself - free of charge, on the attacker's behalf.
@@ -96,36 +99,26 @@ def revalidate(state: dict, session) -> dict:
     if not settings.on("SECURE_STATE_SPLIT"):
         return {}
 
-    from agent import directives
-    cleaned, changed = [], 0
-    for c in state.get("context", []):
-        if c["origin"] not in TRUSTED_ORIGINS and directives.find(c["text"]):
-            c = {**c, "text": directives.strip(c["text"])}
-            changed += 1
-        cleaned.append(c)
-    if changed:
-        board.record(session=session.id, principal=session.principal.id, node="revalidate",
-                     verdict="sanitised", severity="warn", control="SECURE_STATE_SPLIT",
-                     detail=f"{changed} untrusted item(s) re-validated between steps")
-    return {}
+    raise NotImplementedError(
+        "state.revalidate: TODO - re-check every untrusted context item on the way "
+        "past (agent.directives.find/strip), logging how many were changed "
+        "(see tutorials/v08-state-poisoning.md)"
+    )
 
 
 def for_model(state: dict) -> list[Content]:
     """Assemble what the model actually sees.
 
     With the split on, untrusted content is fenced and labelled every single time
-    it is rendered - not once, when it arrived.
+    it is rendered - not once, when it arrived. STUDENT EXERCISE - not implemented
+    yet. (See tutorials/v08-state-poisoning.md.)
     """
     items = [from_dict(d) for d in state.get("context", [])]
     if not settings.on("SECURE_STATE_SPLIT"):
         return items
 
-    out = []
-    for c in items:
-        if c.trusted:
-            out.append(c)
-        else:
-            out.append(Content(
-                text=f'<untrusted origin="{c.origin}" source="{c.label}">\n{c.text}\n</untrusted>',
-                origin=c.origin, label=c.label))
-    return out
+    raise NotImplementedError(
+        "state.for_model: TODO - re-wrap every untrusted item with an "
+        "<untrusted origin=... source=...> fence each time context is assembled "
+        "(see tutorials/v08-state-poisoning.md)"
+    )

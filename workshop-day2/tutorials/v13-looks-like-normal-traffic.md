@@ -79,19 +79,23 @@ guardrail regexes. Cheap, reliable, and blind to anything new.
 
 ### Layer 3 - behavioural
 
-`BASELINE` in `agent/telemetry.py`. This is the layer that catches the
+`Board._behavioural` in `agent/telemetry.py`, is a stub that raises `NotImplementedError`
+once `SECURE_TELEMETRY` is on - that is your exercise. This is the layer that catches the
 legitimate-looking attack, because it asks a different question: not *"is this
-known-bad?"* but *"is this normal for this agent?"*
-
-```python
-if ev.records_touched > BASELINE["max_records_per_call"]: ...
-if self.egress_count > BASELINE["max_egress_per_session"]: ...
-if ev.tool in BASELINE["outbound_tools"] and ev.node == "tool": ...
-if sum(self.tool_counts.values()) > BASELINE["max_tool_calls"]: ...
-```
+known-bad?"* but *"is this normal for this agent?"* Update `self.tool_counts` and
+`self.egress_count` from the event, then call `self._flag(ev, why)` for each of
+`BASELINE`'s four numbers that gets exceeded: records touched in one call, outbound calls
+in the session, an outbound tool used at all
+(`ev.tool in BASELINE["outbound_tools"] and ev.node == "tool"`), and total tool calls in
+the turn.
 
 Four numbers. That is all a first behavioural layer needs to be, and almost nobody has
 one.
+
+Because `Board.record` is called from everywhere in the app, and `_behavioural` runs on
+every one of those calls once the control is on, expect this stub's `NotImplementedError`
+to surface immediately and broadly the moment you turn `SECURE_TELEMETRY` on - that is
+expected, not a sign something else is broken.
 
 ### Layer 4 - security intelligence
 
@@ -110,6 +114,17 @@ it possible, and that is what layers 1-3 are for.
 5. **Keep the record long enough to hunt in.** Layer 4 needs history.
 
 ## 5. Prove it
+
+```
+python kestrel.py attack b6 --control SECURE_TELEMETRY
+```
+
+There is no isolated pytest test for `_behavioural` alone -
+`test_the_legitimate_looking_attack_still_surfaces` and `python kestrel.py attack all
+--secure` both use the full secure profile, so they will keep raising
+`NotImplementedError` until every Day 2 stub is filled in, not just this one. The
+`--control SECURE_TELEMETRY` run above is your narrow feedback loop while working on this
+tutorial.
 
 ```
 python kestrel.py attack all --secure

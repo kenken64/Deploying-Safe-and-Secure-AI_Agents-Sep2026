@@ -44,7 +44,8 @@ check the output. Defence in depth means assuming each layer leaks, and adding o
 
 ### Step 1. Inspect what it SAYS
 
-`agent/guardrails.py`, `secure_check_reply`:
+`agent/guardrails.py`, `secure_check_reply`, is a stub that raises `NotImplementedError` -
+that is your exercise. In order, block on the first match:
 
 | Danger | Check |
 |---|---|
@@ -58,19 +59,12 @@ model is **just over-sharing context**, and the effect is identical.
 
 ### Step 2. Inspect what it is about to DO
 
-This is the half people forget. `secure_check_tool_args`:
-
-```python
-if SQL_RE.search(blob):        return Verdict.block("SQL in a tool argument")
-if SHELL_RE.search(blob):      return Verdict.block("shell metacharacters in a tool argument")
-if TRAVERSAL_RE.search(blob):  return Verdict.block("path traversal in a tool argument")
-if foreign := foreign_customer_ids(blob, session):
-                               return Verdict.block("another customer's data inside an argument")
-if len(value) > 200 and _entropy(value) > 4.2:
-                               return Verdict.block("high-entropy blob - possible encoded exfiltration")
-if call.name == "send_summary" and domain not in {"kestrel.example"}:
-                               return Verdict.block("outbound summary to an unapproved domain")
-```
+This is the half people forget. `secure_check_tool_args`, also a stub, must inspect
+`json.dumps(call.args, default=str)` and block on the first match: SQL (`SQL_RE`), shell
+metacharacters (`SHELL_RE`), path traversal (`TRAVERSAL_RE`), another customer's id
+(`foreign_customer_ids`), a high-entropy string argument over 200 chars (`_entropy(value) >
+4.2` - a possible encoded blob), or - for `send_summary` specifically - a recipient domain
+outside the approved set.
 
 The breach exfiltrated through a tool call that looked **completely normal**. Inspect both.
 
@@ -87,7 +81,9 @@ result = executor.execute(call, session)            # 3 only now does anything h
 
 ### Step 4. Build the layer that catches what no rule names
 
-Blocking is half. `agent/telemetry.py`, layer 3 - **behavioural baselines**:
+Blocking is half. `agent/telemetry.py`, layer 3 - **behavioural baselines**. The comparison
+logic itself (`Board._behavioural`) is a stub too - that is `v13`'s exercise, covered there
+in full. The numbers it compares against:
 
 ```python
 BASELINE = {
@@ -118,8 +114,22 @@ Each layer depends on the one beneath it. You cannot baseline what you never log
 ## 5. Prove it - and prove BOTH halves
 
 ```
+python kestrel.py test  # or: pytest tests/test_attacks.py -k output_guard_inspects
+python kestrel.py attack b6 --control SECURE_OUTPUT_GUARD
+```
+
+`test_output_guard_inspects_what_it_says_and_what_it_does` is isolated to
+`SECURE_OUTPUT_GUARD` and calls `guardrails.check_reply` / `check_tool_args` directly - it
+does not need `SECURE_TELEMETRY` (`v13`) implemented. Proving BOTH halves together needs
+that one too:
+
+```
 python kestrel.py attack b6 --secure
 ```
+
+`--secure` turns on all eighteen controls, so it (and the full `python kestrel.py test`)
+will keep raising `NotImplementedError` until every Day 2 stub is filled in, not just these
+two.
 
 ```
   blocked    send_summary blocked at the output guardrail: outbound summary to an

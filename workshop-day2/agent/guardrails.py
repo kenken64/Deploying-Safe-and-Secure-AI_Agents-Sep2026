@@ -58,15 +58,22 @@ def vulnerable_check_reply(text: str, session: Session) -> Verdict:
 
 
 def secure_check_reply(text: str, session: Session) -> Verdict:
-    if SYSTEM_PROMPT_FINGERPRINT in text:
-        return Verdict.block("the system prompt is in the reply", layer="output")
-    if m := SECRET_RE.search(text):
-        return Verdict.block(f"credential-shaped string in the reply: {m.group(0)[:12]}...",
-                             layer="output")
-    if foreign := foreign_customer_ids(text, session):
-        return Verdict.block(f"another customer's identifier in the reply: {', '.join(foreign)}",
-                             layer="output")
-    return Verdict.allow(layer="output")
+    """STUDENT EXERCISE - not implemented yet. (See tutorials/v12-silent-exfiltration.md.)
+
+    Inspect what the agent is about to SAY. In order, return `Verdict.block(reason,
+    layer="output")` for the first match:
+
+      - `SYSTEM_PROMPT_FINGERPRINT` appears in `text`.
+      - `SECRET_RE` matches (an API-key/credential-shaped string).
+      - `foreign_customer_ids(text, session)` is non-empty (another customer's id).
+
+    Otherwise `Verdict.allow(layer="output")`.
+    """
+    raise NotImplementedError(
+        "guardrails.secure_check_reply: TODO - block system-prompt leakage, "
+        "credential-shaped strings, and foreign customer ids "
+        "(see tutorials/v12-silent-exfiltration.md)"
+    )
 
 
 def check_reply(text: str, session: Session) -> Verdict:
@@ -90,31 +97,30 @@ def vulnerable_check_tool_args(call: ToolCall, session: Session) -> Verdict:
 
 def secure_check_tool_args(call: ToolCall, session: Session) -> Verdict:
     """A payload hidden inside an innocent-looking parameter.
+    STUDENT EXERCISE - not implemented yet. (See tutorials/v12-silent-exfiltration.md.)
 
     This is the half people forget. The call is schema-valid, the authorization
-    passes, the API returns 200 - and data walks out inside an argument.
+    passes, the API returns 200 - and data walks out inside an argument. Inspect
+    `blob = json.dumps(call.args, default=str)` and, in order, return
+    `Verdict.block(reason, layer="tool-args")` for the first match:
+
+      - `SQL_RE` matches (SQL in an argument).
+      - `SHELL_RE` matches (shell metacharacters).
+      - `TRAVERSAL_RE` matches (path traversal).
+      - `foreign_customer_ids(blob, session)` is non-empty.
+      - any string argument longer than 200 chars has `_entropy(value) > 4.2`
+        (a possible encoded blob).
+      - `call.name == "send_summary"` and the recipient's domain isn't in the
+        approved set (`{"kestrel.example"}`).
+
+    Otherwise `Verdict.allow(layer="tool-args")`.
     """
-    blob = json.dumps(call.args, default=str)
-    if SQL_RE.search(blob):
-        return Verdict.block("SQL in a tool argument", layer="tool-args")
-    if SHELL_RE.search(blob):
-        return Verdict.block("shell metacharacters in a tool argument", layer="tool-args")
-    if TRAVERSAL_RE.search(blob):
-        return Verdict.block("path traversal in a tool argument", layer="tool-args")
-    if foreign := foreign_customer_ids(blob, session):
-        return Verdict.block(f"another customer's data inside a {call.name} argument: "
-                             f"{', '.join(foreign)}", layer="tool-args")
-    for key, value in call.args.items():
-        if isinstance(value, str) and len(value) > 200 and _entropy(value) > 4.2:
-            return Verdict.block(f"high-entropy blob in {key} - possible encoded exfiltration",
-                                 layer="tool-args")
-    if call.name == "send_summary":
-        recipient = str(call.args.get("recipient", ""))
-        domain = recipient.split("@")[-1].lower()
-        if domain not in {"kestrel.example"}:
-            return Verdict.block(f"outbound summary to an unapproved domain: {domain}",
-                                 layer="tool-args")
-    return Verdict.allow(layer="tool-args")
+    raise NotImplementedError(
+        "guardrails.secure_check_tool_args: TODO - inspect tool arguments for SQL, "
+        "shell metacharacters, path traversal, foreign customer ids, high-entropy "
+        "blobs, and unapproved outbound domains "
+        "(see tutorials/v12-silent-exfiltration.md)"
+    )
 
 
 def check_tool_args(call: ToolCall, session: Session) -> Verdict:

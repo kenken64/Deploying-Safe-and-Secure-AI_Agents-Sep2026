@@ -67,21 +67,12 @@ Two defects, and you need to fix both:
 
 ## 4. Fix it - step by step
 
-### Step 1. Make the id unguessable
+### Step 1 & 2. Make the id unguessable, and bind it at creation
 
-```python
-tid = "thr_" + secrets.token_urlsafe(24)
-```
-
-Not a counter. Not a UUIDv1 (which encodes time and MAC). A cryptographically random
-token.
-
-### Step 2. Bind it to the authenticated user at creation
-
-```python
-conn.execute("INSERT OR REPLACE INTO threads (thread_id, owner_id, created_at)"
-             " VALUES (?,?,datetime('now'))", (tid, principal.id))
-```
+`agent/memory.py`, `secure_thread_id`, is a stub that raises `NotImplementedError` - that
+is your exercise. Generate a token with `secrets.token_urlsafe(24)` (not a counter, not a
+UUIDv1, which encodes time and MAC), prefix it, insert a row into the `threads` table
+binding it to `principal.id`, and return the id.
 
 Unguessable alone is *security by obscurity*. A leaked URL, a shared screenshot, a
 referrer header, a log aggregator - and the id is no longer secret. The binding is what
@@ -89,11 +80,9 @@ makes it a control.
 
 ### Step 3. Check ownership on EVERY access
 
-```python
-owner = db.rows("SELECT owner_id FROM threads WHERE thread_id = ?", (thread_id,))
-if not owner or owner[0]["owner_id"] != principal.id:
-    raise Denied("thread", f"{principal.id} does not own {thread_id}")
-```
+`read_thread`'s `SECURE_THREAD_IDS` branch is also a stub. Look up the `owner_id` for
+`thread_id` against the `threads` table; raise `Denied("thread", ...)` unless it matches
+`principal.id`.
 
 Every access. Not at creation, not at login - the same lesson as Day 1's
 *check at the action, not at the start.*

@@ -173,20 +173,30 @@ def vulnerable_query(sql: str) -> list[dict[str, Any]]:
 
 
 def secure_orders_for(principal: Principal, order_id: str | None = None) -> list[dict[str, Any]]:
-    """SECURE (Day 1, slide 50, rule 2).
+    """SECURE (Day 1, slide 50, rule 2). STUDENT EXERCISE - not implemented yet.
 
-    The ONLY way to reach orders. The customer_id comes from the authenticated
-    session, never from the model, and it is not an optional keyword argument -
-    there is no code path here that returns another customer's rows.
+    This must become the ONLY way to reach orders. Three requirements, all
+    deliberate (see tutorials/v01-cross-tenant-leak.md, Step 1):
+
+      1. The tenancy predicate is NOT secure_ordersoptional. There must be no code path
+         through this function that can return a row without it.
+      2. The customer id comes from `principal` (the authenticated session) -
+         never from `order_id` or any other caller-supplied argument.
+      3. All SQL is parameterised. No f-strings, no string interpolation -
+         even though the input now "only" comes from your own code.
+
+    When `order_id` is given, the result must additionally be narrowed to
+    that one order - and still return nothing at all if that order belongs
+    to a different customer.
+
+    TODO(student): implement this. Until you do, `python kestrel.py attack a1
+    --secure` and `python kestrel.py test` will fail loudly - that is your
+    signal to write this function, not proof anything is already safe.
     """
-    if principal.customer_id is None:
-        return []
-    sql = "SELECT * FROM orders WHERE customer_id = ?"
-    args: list[Any] = [principal.customer_id]
-    if order_id:
-        sql += " AND id = ?"
-        args.append(order_id)
-    return rows(sql, tuple(args))
+    raise NotImplementedError(
+        "secure_orders_for: TODO - scope every query to principal.customer_id "
+        "(see tutorials/v01-cross-tenant-leak.md)"
+    )
 
 
 def order_owner(order_id: str) -> str | None:

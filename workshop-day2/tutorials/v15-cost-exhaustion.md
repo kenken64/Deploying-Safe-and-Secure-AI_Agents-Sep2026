@@ -53,48 +53,39 @@ guard.**
 
 ## 4. Fix it - step by step
 
-`agent/limits.py`. Five independent levels, because one cap is a cap on one thing only.
+`agent/limits.py`, `check_session_start` and `check_step`, are stubs that raise
+`NotImplementedError` once `SECURE_LIMITS` is on - that is your exercise. Five independent
+levels, because one cap is a cap on one thing only, each calling `_trip(level, detail)`
+when tripped:
 
-### 1. Request rate - how often a user can start new sessions
+### 1. Request rate - how often a user can start new sessions (`check_session_start`)
 
-```python
-while _session_starts and now - _session_starts[0] > 60:
-    _session_starts.popleft()
-if len(_session_starts) >= settings.limit_sessions_per_min: _trip(...)
-```
+Drop entries from `_session_starts` older than 60 seconds (a sliding window), trip if what
+remains is already at `settings.limit_sessions_per_min`, then record this start.
 
 ### 2. Session execution - a hard cap on steps within one session
 
-```python
-if session.steps > settings.limit_steps_per_session: _trip(...)
-```
+Trip if `session.steps > settings.limit_steps_per_session`.
 
 ### 3. Loop detection - spot the agent repeating a cycle, and cut it
 
-```python
-c[call.fingerprint()] += 1
-if c[call.fingerprint()] > settings.limit_repeat_cycle: _trip(...)
-```
-
-Note it fingerprints **tool + arguments**. An agent legitimately calling `get_order` five
-times with five different ids is fine; calling it five times with the *same* id is a loop.
+Fingerprint `call` (**tool + arguments**) in a per-session counter; trip if the same
+fingerprint recurs more than `settings.limit_repeat_cycle` times. An agent legitimately
+calling `get_order` five times with five different ids is fine; calling it five times with
+the *same* id is a loop.
 
 ### 4. Token budget - per session **AND** cumulative daily
 
-```python
-if session.tokens > settings.limit_tokens_per_session: _trip(...)
-if _daily_tokens["n"] > settings.limit_tokens_per_day:  _trip(...)
-```
+Trip if `session.tokens > settings.limit_tokens_per_session`. Separately, reset a daily
+counter when the date rolls over and trip if it exceeds `settings.limit_tokens_per_day`.
 
 > Per-session alone lets an attacker run many short sessions. Cumulative alone lets one
 > session eat the day. **You need both.**
 
 ### 5. Cost circuit breaker - the global kill-switch
 
-```python
-session.cost_usd = session.tokens / 1000 * USD_PER_1K_TOKENS
-if session.cost_usd > settings.limit_cost_ceiling_usd: _trip(...)
-```
+Set `session.cost_usd` from `session.tokens` and `USD_PER_1K_TOKENS`; trip if it exceeds
+`settings.limit_cost_ceiling_usd`.
 
 A number your finance team would recognise, with a switch attached to it.
 
@@ -103,6 +94,10 @@ A number your finance team would recognise, with a switch attached to it.
 ```
 python kestrel.py attack b8 --control SECURE_LIMITS
 ```
+
+There is no isolated unit test for this one - `test_five_limits_exist_and_each_caps_a_different_thing`
+only checks that the settings exist, not that enforcement works. The CLI run above, and
+watching the budget line change in `/console`, is your real feedback loop.
 
 ```
   blocked    limit tripped - 3 loop detection: lookup_orders repeated 4x with identical arguments

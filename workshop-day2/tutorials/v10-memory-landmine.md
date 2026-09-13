@@ -70,25 +70,15 @@ Not all memory is equal. `MEMORY_GATES`:
 
 An unknown kind is treated as `policy` - the most dangerous. Fail safe, not open.
 
-### Step 2. Let the model PROPOSE, never decide
+### Step 2 & 3. Let the model PROPOSE, never decide - and refuse instruction-shaped text
 
-```python
-approved = MEMORY_GATES[kind] == "allowed"
-conn.execute("INSERT INTO memories (... approved ...) VALUES (?,?,?,?,...)",
-             (..., 1 if approved else 0, ...))
-```
-
-Yesterday's rule, applied to memory: **the model may request; only code decides.**
-
-### Step 3. Refuse instruction-shaped memories outright
-
-```python
-if directives.find(text):
-    return "I can't save that as a note."
-```
-
-A memory is a *fact about the user*, not an instruction to the agent. If it reads like an
-instruction, it is not a memory.
+`agent/memory.py`, `secure_remember`, is a stub that raises `NotImplementedError` - that is
+your exercise. Before writing anything, refuse text that reads as an instruction
+(`directives.find(text)`) with `"I can't save that as a note."` - a memory is a *fact about
+the user*, not an instruction to the agent. Otherwise, derive `approved =
+MEMORY_GATES[kind] == "allowed"` and write that flag into the row - never hardcode
+`approved=1`. Yesterday's rule, applied to memory: **the model may request; only code
+decides.**
 
 ### Step 4. Never read back what has not been approved
 

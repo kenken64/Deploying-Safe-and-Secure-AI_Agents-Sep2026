@@ -131,18 +131,26 @@ board.record(...)                   # 5. log
 One chokepoint you can audit, instead of per-tool discipline you have to trust. When
 someone adds a tool next month, it inherits all five steps for free.
 
-Notice step 1 rejects *undeclared* arguments, not just malformed ones:
-
-```python
-for key in call.args:
-    if key not in props:
-        raise Blocked("SECURE_EXECUTOR", f"undeclared argument {key!r} on {call.name}")
-```
-
-That is an allowlist. A model that invents `{"sql": ...}` on `get_order` is stopped before
-anything runs.
+`agent/executor.py`, `_validate_args`, is a stub that raises `NotImplementedError` - that is
+your exercise. It must enforce `spec.parameters` (a JSON schema) against `call.args`,
+raising `Blocked("SECURE_EXECUTOR", reason)` on the first violation: reject any key in
+`call.args` that isn't in the schema's declared properties (this is step 1 rejecting
+*undeclared* arguments, not just malformed ones - an allowlist, so a model that invents
+`{"sql": ...}` on `get_order` is stopped before anything runs), then check every required
+key is present, then check each declared value against its rule - `type`, `enum`,
+`pattern`, `minimum`, `maximum`.
 
 ## 6. Prove it
+
+```
+python kestrel.py attack a5 --control SECURE_TOOLS --control SECURE_TENANCY --control SECURE_EXECUTOR
+```
+
+This attack needs **two** stubs done - `db.secure_orders_for` (`v01`) and
+`executor._validate_args` (this tutorial). There is no isolated unit test for
+`_validate_args` alone; `--secure` and the full `python kestrel.py test` exercise every
+control at once, so they will keep raising `NotImplementedError` until every Day 1 stub is
+filled in.
 
 ```
 python kestrel.py attack a5 --secure

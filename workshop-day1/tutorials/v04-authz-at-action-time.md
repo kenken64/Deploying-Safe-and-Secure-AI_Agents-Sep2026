@@ -50,36 +50,23 @@ who was asking.*
 
 ## 3. RBAC is three checks, not one
 
-`agent/authz.py`, `secure_check`:
+`agent/authz.py`, `secure_check`, is a stub that raises `NotImplementedError` - that is your
+exercise. Implement, in order, raising `Denied(level, reason)` at the first failure:
 
-```python
-def secure_check(session: Session, call: ToolCall) -> None:
-    p = session.principal
-
-    # level 1 - INVOKE: may this person talk to the agent at all?
-    if not p.may_invoke_agent:
-        raise Denied("invoke", ...)
-
-    # level 2 - TOOL: which tools does their role unlock?
-    if call.name not in ROLE_TOOLS.get(p.role, set()):
-        raise Denied("tool", ...)
-
-    # level 3 - RESOURCE: which rows may THIS call touch?
-    owner = resource_owner(call)
-    if owner is not None and p.role != "staff" and owner != p.customer_id:
-        raise Denied("resource", ...)          # <- miss this one and you get slide 9
-```
+- **level 1 - INVOKE:** may this person talk to the agent at all? Check
+  `session.principal.may_invoke_agent`.
+- **level 2 - TOOL:** which tools does their role unlock? Check `call.name` against
+  `ROLE_TOOLS[session.principal.role]`.
+- **level 3 - RESOURCE:** which rows may THIS call touch? Use `resource_owner(call)`; if it
+  names an owner, the caller isn't staff, and that owner isn't the caller's own
+  `customer_id`, deny. Miss this one and you get slide 9.
 
 Most teams build level 1, often build level 2, and almost never build level 3. Level 3 is
 the one that produces cross-tenant incidents.
 
-Notice the refund rule underneath it:
-
-```python
-if call.name == "refund" and p.role == "customer":
-    if cents > settings.refund_autonomous_ceiling_cents:      # $50
-        raise Denied("tool", "... needs staff")
-```
+One more rule, after all three levels pass: a customer may refund their **own** order, but
+only staff may issue a refund above `settings.refund_autonomous_ceiling_cents` ($50) -
+anything larger from a customer-role caller must also be denied.
 
 **A customer may refund their own order. Only staff issue an arbitrary credit.** Hold on
 to the fact that refund splits by amount - it becomes the human-in-the-loop gate on Day 2.
@@ -131,14 +118,28 @@ and forgets to wire the check in.
 
 ## 6. Prove it
 
+`authz.secure_check` runs on **every** tool call once `SECURE_AUTHZ` is on - it is genuinely
+shared infrastructure, not a1/a2-specific code. The narrowest, most immediate check calls it
+directly, with nothing else in the pipeline involved:
+
+```
+python kestrel.py test  # or: pytest tests/test_attacks.py -k checked_at_the_action
+```
+
+`test_authorization_is_checked_at_the_action_not_at_the_start` asserts that the same
+session is allowed `ORD-100001` and refused `ORD-100003` with `level == "resource"`.
+
 ```
 python kestrel.py attack a1 --secure
 python kestrel.py attack a2 --secure
 python kestrel.py test
 ```
 
-`test_authorization_is_checked_at_the_action_not_at_the_start` asserts that the same
-session is allowed `ORD-100001` and refused `ORD-100003` with `level == "resource"`.
+These use the full secure profile. Because `secure_check` gates every call, leaving it
+unimplemented will make *every* attack's hardened-build test fail, not just `a1`/`a2` - and
+because `SECURE_INTAKE` is checked even earlier in the pipeline (`v02`), expect a traceback
+from there first if you haven't done that one yet. Work through the tutorials in order and
+this settles once every stub is filled in.
 
 ## 7. Activity: who may say yes
 

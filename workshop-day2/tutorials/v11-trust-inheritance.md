@@ -104,16 +104,16 @@ The tier is *declared, not assumed*.
 
 ### Step 2. Build the quarantine node
 
-`agent/quarantine.py` - and read the whole file, it is short on purpose:
+`agent/quarantine.py`, `check`, is a stub that raises `NotImplementedError` - that is your
+exercise, and the whole file is short on purpose, meant to be read in a minute:
 
-```python
-def check(summary: SubagentSummary, session: Session) -> Content:
-    if not isinstance(summary.text, str): raise TypeError(...)   # 1 schema
-    found = directives.find(text)
-    if found: text = directives.strip(text)                      # 2 strip instructions
-    if len(text) > MAX_SUMMARY_CHARS: text = text[:800] + ...    # 3 bound the size
-    return Content(text=f'<subagent name="..." tier="...">...', origin="subagent", ...)  # 4 tag
-```
+1. **schema** - raise `TypeError` if `summary.text` isn't a string.
+2. **strip instructions** - run it through `directives.find` / `directives.strip`; if
+   anything was found, light `agent_trust` amber and log it.
+3. **bound the size** - truncate to `MAX_SUMMARY_CHARS`, noting the truncation.
+4. **tag it** - return a `Content` wrapping the result in a `<subagent name="..."
+   tier="...">...` block with a trailing note that it is a REPORT, not an instruction, and
+   `origin="subagent"`.
 
 **No LLM calls. No state. No actions.**
 
@@ -155,6 +155,21 @@ agent B agrees, and only then does the action fire.
 > **Containment is arranging things so that no single compromise is sufficient.**
 
 ## 7. Prove it
+
+```
+python kestrel.py attack b5 --control SECURE_QUARANTINE
+```
+
+There is no isolated unit test for `quarantine.check`'s logic itself -
+`test_quarantine_has_no_llm_no_state_and_no_actions` only inspects the source text for
+forbidden calls, so it will pass regardless of whether your implementation is correct. The
+`--control SECURE_QUARANTINE` run above is your real feedback loop while working on this
+tutorial.
+
+`b1` additionally needs `SECURE_STATE_SPLIT` (`v08`), `SECURE_OUTPUT_GUARD` (`v12`) and
+`SECURE_HITL` (`v14`) - its own `closed_by` list has four controls, not one. And `--secure`
+turns on all eighteen controls across both days, so it (and the full `python kestrel.py
+test`) will keep raising `NotImplementedError` until every Day 2 stub is filled in:
 
 ```
 python kestrel.py attack b1 --secure

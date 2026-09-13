@@ -76,19 +76,18 @@ who sees what.
 
 ### Step 1. Put the filter at the data layer, not in the tool
 
-Open `agent/db.py`. Read `secure_orders_for`:
+Open `agent/db.py`. `secure_orders_for(principal, order_id=None)` is a stub that raises
+`NotImplementedError` - that is your exercise. Its docstring spells out the contract; write
+the function so it:
 
-```python
-def secure_orders_for(principal: Principal, order_id: str | None = None) -> list[dict]:
-    if principal.customer_id is None:
-        return []
-    sql  = "SELECT * FROM orders WHERE customer_id = ?"   # not optional
-    args = [principal.customer_id]                        # from the SESSION, never the model
-    if order_id:
-        sql += " AND id = ?"
-        args.append(order_id)
-    return rows(sql, tuple(args))
-```
+- always predicates the query on `principal.customer_id` - there must be no code path
+  through the function that can return a row without that predicate;
+- takes that id from `principal` (the authenticated session), never from `order_id` or any
+  other argument the model could influence;
+- also narrows to `order_id` when one is given, returning nothing at all if that order
+  belongs to a different customer;
+- uses parameterised SQL throughout - no f-strings, no string interpolation, ever, even
+  though the input is now "only" coming from your own code.
 
 Three things matter here and they are all deliberate:
 
@@ -161,6 +160,11 @@ Both together:
 python kestrel.py attack a1 --control SECURE_TOOLS --control SECURE_TENANCY
 ```
 
+Until `secure_orders_for` is implemented, this raises `NotImplementedError` instead of
+running - a raw Python traceback, not a graceful refusal. That is expected, not a sign
+something else is broken: it is `get_order` reaching the exact function you are about to
+write. Once you implement it correctly, this becomes:
+
 ```
   tool       get_order -> No matching orders.
   [ ok ]    data_boundary
@@ -191,11 +195,26 @@ That is `v04`.
 
 ## 6. Prove it
 
+The fastest, narrowest check that you personally got `secure_orders_for` right - no other
+tutorial's stub involved - is the direct unit test:
+
+```
+python kestrel.py test  # or: pytest tests/test_attacks.py -k data_layer_has_no_path
+```
+
+`test_the_data_layer_has_no_path_that_returns_another_customers_rows` asserts that
+`secure_orders_for(alice)` returns Alice's own rows, and that
+`secure_orders_for(alice, "ORD-100003")` returns `[]` - not an error, not a refusal, but
+literally no such row from Alice's point of view.
+
 ```
 python kestrel.py attack a1 --secure
 ```
 
-You want to see:
+`--secure` turns on **every** control, not just this one - so this command (and the full
+`python kestrel.py test`) will keep raising `NotImplementedError` until every stub across
+Day 1 is filled in, from `intake.secure_check` (`v02`) onward. Once everything is
+implemented, you want to see:
 
 ```
   [ ok ]    data_boundary
@@ -205,16 +224,6 @@ You want to see:
 
 The **data boundary light staying green on a re-run of the opening attack** is the
 Workshop 1 success criterion that matters most (Day 1, slide 56).
-
-And in the test suite:
-
-```
-python kestrel.py test
-```
-
-`test_the_data_layer_has_no_path_that_returns_another_customers_rows` asserts that
-`secure_orders_for(alice, "ORD-100003")` returns `[]` - not an error, not a refusal, but
-literally no such row from Alice's point of view.
 
 ## 7. On your own agent
 

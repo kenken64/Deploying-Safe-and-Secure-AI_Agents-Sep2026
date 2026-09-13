@@ -137,9 +137,19 @@ MAX_REFUND_CENTS = 200_000
 
 
 def _assert_allowed(url: str) -> None:
-    u = urlparse(url)
-    if u.scheme != "https" or (u.hostname or "") not in ALLOWED_HOSTS:
-        raise EgressDenied(url)
+    """STUDENT EXERCISE - not implemented yet. (See tutorials/v07-ssrf-egress.md.)
+
+    Parse `url`. Raise `EgressDenied(url)` unless the scheme is `"https"` AND
+    the hostname is in `ALLOWED_HOSTS`. Allowlist, not denylist - you will never
+    enumerate every internal address worth protecting.
+
+    TODO(student): implement this. Until you do, `python kestrel.py attack a7
+    --secure` and `python kestrel.py test` will fail loudly.
+    """
+    raise NotImplementedError(
+        "tools._assert_allowed: TODO - allowlist scheme=https and hostname in "
+        "ALLOWED_HOSTS (see tutorials/v07-ssrf-egress.md)"
+    )
 
 
 def _t_get_order(args: dict, session: Session) -> ToolResult:

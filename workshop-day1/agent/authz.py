@@ -49,29 +49,34 @@ def vulnerable_check(session: Session, call: ToolCall) -> None:
 
 
 def secure_check(session: Session, call: ToolCall) -> None:
-    """SECURE: all three levels, at the action, against the session."""
-    p: Principal = session.principal
+    """SECURE: all three levels, at the action, against the session.
+    STUDENT EXERCISE - not implemented yet. (See tutorials/v04-authz-at-action-time.md.)
 
-    # level 1 - invoke
-    if not p.may_invoke_agent:
-        raise Denied("invoke", f"{p.id} may not use the agent")
+    Implement, in order, raising `Denied(level, reason)` the moment one fails:
 
-    # level 2 - tool
-    if call.name not in ROLE_TOOLS.get(p.role, set()):
-        raise Denied("tool", f"role={p.role} may not call {call.name}")
+      level 1 - INVOKE: may this person talk to the agent at all?
+                `session.principal.may_invoke_agent` must be true.
+      level 2 - TOOL: which tools does their role unlock?
+                `call.name` must be in `ROLE_TOOLS[session.principal.role]`.
+      level 3 - RESOURCE: which rows may THIS call touch?
+                use `resource_owner(call)`; if it names an owner, the caller is
+                not staff, and that owner isn't the caller's own customer_id,
+                deny. Miss this level and you get the opening breach back.
 
-    # level 3 - resource. THE tenancy check. Miss it and you get the opening breach.
-    owner = resource_owner(call)
-    if owner is not None and p.role != "staff" and owner != p.customer_id:
-        raise Denied("resource", f"{p.customer_id} may not touch a row owned by {owner}")
+    One more rule, after all three levels pass: a customer may refund their OWN
+    order, but only staff may issue a refund above
+    `settings.refund_autonomous_ceiling_cents` - anything larger from a
+    "customer"-role caller must also be denied.
 
-    # A customer may refund their OWN order. Only staff issue an arbitrary credit.
-    # (slide 48, level 2 example. The dollar split becomes the HITL gate on Day 2.)
-    if call.name == "refund" and p.role == "customer":
-        cents = int(call.args.get("amount_cents") or 0)
-        if cents > settings.refund_autonomous_ceiling_cents:
-            raise Denied("tool", f"refund of {cents}c exceeds the customer ceiling "
-                                 f"({settings.refund_autonomous_ceiling_cents}c) - needs staff")
+    TODO(student): implement this. Until you do, every secure-profile tool call
+    will raise instead of being checked - `python kestrel.py test` will fail
+    loudly across most attacks, not just a1/a2. That is expected: this check
+    runs on every single call, so it is genuinely shared infrastructure.
+    """
+    raise NotImplementedError(
+        "authz.secure_check: TODO - implement the three RBAC levels "
+        "(see tutorials/v04-authz-at-action-time.md)"
+    )
 
 
 def check(session: Session, call: ToolCall) -> None:

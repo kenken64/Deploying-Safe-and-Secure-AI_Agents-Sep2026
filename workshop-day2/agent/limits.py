@@ -35,19 +35,38 @@ def reset() -> None:
 
 # ---- 1. request rate ---------------------------------------------------------------
 def check_session_start() -> None:
+    """STUDENT EXERCISE - not implemented yet. (See tutorials/v15-cost-exhaustion.md.)
+
+    A sliding 60-second window: drop entries from `_session_starts` older than 60s,
+    call `_trip("1 request rate", ...)` if what remains is already at
+    `settings.limit_sessions_per_min`, then record this start.
+    """
     if not settings.on("SECURE_LIMITS"):
         return
-    now = time.time()
-    while _session_starts and now - _session_starts[0] > 60:
-        _session_starts.popleft()
-    if len(_session_starts) >= settings.limit_sessions_per_min:
-        _trip("1 request rate", f"{len(_session_starts)} sessions in 60s "
-                                f"(cap {settings.limit_sessions_per_min})")
-    _session_starts.append(now)
+    raise NotImplementedError(
+        "limits.check_session_start: TODO - enforce the sliding-window request-rate cap "
+        "(see tutorials/v15-cost-exhaustion.md)"
+    )
 
 
 # ---- 2. session execution & 3. loop detection & 4. token budget & 5. cost ----------
 def check_step(session: Session, call: ToolCall | None = None) -> None:
+    """STUDENT EXERCISE - not implemented yet. (See tutorials/v15-cost-exhaustion.md.)
+
+    Four independent levels, each calling `_trip(level, detail)` when tripped -
+    one cap is a cap on one thing only:
+
+      2. session execution - `_trip` if `session.steps > settings.limit_steps_per_session`.
+      3. loop detection - fingerprint `call` (tool + arguments) in a per-session
+         `Counter` (`_cycles`); `_trip` if the same fingerprint recurs more than
+         `settings.limit_repeat_cycle` times. Skip if `call is None`.
+      4. token budget, BOTH per-session (`session.tokens` vs
+         `limit_tokens_per_session`) AND cumulative daily (`_daily_tokens`, reset
+         when the date rolls over, vs `limit_tokens_per_day`) - you need both,
+         since either alone leaves a gap.
+      5. cost circuit breaker - set `session.cost_usd` from `session.tokens` and
+         `USD_PER_1K_TOKENS`, `_trip` if it exceeds `settings.limit_cost_ceiling_usd`.
+    """
     if not settings.on("SECURE_LIMITS"):
         # With limits off the only thing standing between you and an unbounded
         # run is the graph's recursion limit - which is a framework safety net,
@@ -57,37 +76,11 @@ def check_step(session: Session, call: ToolCall | None = None) -> None:
                         f"{session.steps} steps in one session, nothing capped it")
         return
 
-    # 2 - hard cap on steps within one session
-    if session.steps > settings.limit_steps_per_session:
-        _trip("2 session execution", f"{session.steps} steps "
-                                     f"(cap {settings.limit_steps_per_session})")
-
-    # 3 - loop detection: the same (tool, args) cycle, over and over
-    if call is not None:
-        c = _cycles.setdefault(session.id, Counter())
-        c[call.fingerprint()] += 1
-        if c[call.fingerprint()] > settings.limit_repeat_cycle:
-            _trip("3 loop detection", f"{call.name} repeated "
-                                      f"{c[call.fingerprint()]}x with identical arguments")
-
-    # 4 - token budget, per session AND cumulative daily. You need both:
-    #     per-session alone lets an attacker run many short sessions;
-    #     cumulative alone lets one session eat the day.
-    if session.tokens > settings.limit_tokens_per_session:
-        _trip("4 token budget (session)", f"{session.tokens} tokens "
-                                          f"(cap {settings.limit_tokens_per_session})")
-    today = time.strftime("%Y-%m-%d")
-    if _daily_tokens["day"] != today:
-        _daily_tokens.update(n=0, day=today)
-    if _daily_tokens["n"] > settings.limit_tokens_per_day:
-        _trip("4 token budget (daily)", f"{_daily_tokens['n']} tokens today "
-                                        f"(cap {settings.limit_tokens_per_day})")
-
-    # 5 - cost circuit breaker: the global kill-switch
-    session.cost_usd = session.tokens / 1000 * USD_PER_1K_TOKENS
-    if session.cost_usd > settings.limit_cost_ceiling_usd:
-        _trip("5 cost circuit breaker",
-              f"${session.cost_usd:.3f} spent (ceiling ${settings.limit_cost_ceiling_usd:.2f})")
+    raise NotImplementedError(
+        "limits.check_step: TODO - enforce the four remaining levels (session "
+        "steps, loop detection, token budget, cost ceiling) "
+        "(see tutorials/v15-cost-exhaustion.md)"
+    )
 
 
 def account_tokens(n: int) -> None:

@@ -108,26 +108,24 @@ class Board:
 
     # -- LAYER 3 ---------------------------------------------------------------------
     def _behavioural(self, ev: Event) -> None:
+        """STUDENT EXERCISE - not implemented yet. (See tutorials/v12/v13.)
+
+        Update `self.tool_counts` and `self.egress_count` from `ev`, then compare
+        against `BASELINE`'s four numbers, calling `self._flag(ev, why)` for each
+        that is exceeded: records touched per call, outbound calls per session,
+        an outbound tool used at all (`ev.tool in BASELINE["outbound_tools"] and
+        ev.node == "tool"`), and total tool calls in the turn. This is the layer
+        that catches the legitimate-looking attack - it asks "is this normal?",
+        not "is this known-bad?".
+        """
         from config import settings
         if not settings.on("SECURE_TELEMETRY"):
             return
-        if ev.tool:
-            self.tool_counts[ev.tool] += 1
-        if ev.egress_host:
-            self.egress_count += 1
-
-        if ev.records_touched > BASELINE["max_records_per_call"]:
-            self._flag(ev, f"{ev.tool or ev.node} touched {ev.records_touched} records "
-                           f"(baseline {BASELINE['max_records_per_call']})")
-        if self.egress_count > BASELINE["max_egress_per_session"]:
-            self._flag(ev, f"{self.egress_count} outbound calls in one session "
-                           f"(baseline {BASELINE['max_egress_per_session']})")
-        if ev.tool in BASELINE["outbound_tools"] and ev.node == "tool":
-            self._flag(ev, f"outbound tool {ev.tool} used inside a support conversation - "
-                           f"valid call, unusual shape")
-        if sum(self.tool_counts.values()) > BASELINE["max_tool_calls"]:
-            self._flag(ev, f"{sum(self.tool_counts.values())} tool calls in one turn "
-                           f"(baseline {BASELINE['max_tool_calls']})")
+        raise NotImplementedError(
+            "telemetry.Board._behavioural: TODO - compare this event against "
+            "BASELINE's four numbers and flag anomalies "
+            "(see tutorials/v12-silent-exfiltration.md and v13-looks-like-normal-traffic.md)"
+        )
 
     def _flag(self, ev: Event, why: str) -> None:
         if why in self.findings:

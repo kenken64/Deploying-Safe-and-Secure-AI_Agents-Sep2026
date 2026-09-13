@@ -42,30 +42,31 @@ def vulnerable_check(text: str) -> Verdict:
 
 def secure_check(text: str) -> Verdict:
     """SECURE: three concentric layers, outermost first (slide 30).
+    STUDENT EXERCISE - not implemented yet.
 
     Concentric, NOT sequential - each layer is a different kind of wrongness, and
-    layering them is the point. Do not rely on any one of them.
+    layering them is the point. Do not rely on any one of them. (See
+    tutorials/v02-direct-injection.md.)
+
+      layer 1 - structural. Before the model ever sees the text: reject anything
+                over MAX_LEN, and anything containing a character outside
+                ALLOWED_CHARS. Return Verdict.block(..., layer="structural").
+      layer 2 - content. Walk CONTENT_SHAPES; if any pattern matches, block with
+                Verdict.block(f"known injection shape: {name}", layer="content").
+      layer 3 - semantic. Call _classify(text); if it returns "privilege_claim",
+                block with Verdict.block(..., layer="semantic"). This layer has a
+                real false-positive cost and will flag legitimate customers - that
+                is not a bug to hide.
+
+    If nothing blocks, return Verdict.allow(layer="passed all three layers").
+
+    TODO(student): implement this. Until you do, `python kestrel.py attack a2
+    --secure` and `python kestrel.py test` will fail loudly.
     """
-    # ---- layer 1: structural. Applied before the model ever sees the text. --------
-    if len(text) > MAX_LEN:
-        return Verdict.block(f"length {len(text)} > {MAX_LEN}", layer="structural")
-    if not ALLOWED_CHARS.match(text):
-        return Verdict.block("character outside the permitted set", layer="structural")
-
-    # ---- layer 2: content. Catches the dumb stuff - which is worth catching. ------
-    for name, pat in CONTENT_SHAPES:
-        if pat.search(text):
-            return Verdict.block(f"known injection shape: {name}", layer="content")
-
-    # ---- layer 3: semantic. Be honest about this one. ----------------------------
-    # It has a real false-positive cost. It WILL flag legitimate customers. The
-    # classifier here is a stand-in; in production this is a model call, and it is
-    # the layer most likely to make your support queue angry.
-    intent = _classify(text)
-    if intent == "privilege_claim":
-        return Verdict.block("semantic: claim of authority", layer="semantic")
-
-    return Verdict.allow(layer="passed all three layers")
+    raise NotImplementedError(
+        "intake.secure_check: TODO - implement the three concentric layers "
+        "(see tutorials/v02-direct-injection.md)"
+    )
 
 
 def _classify(text: str) -> str:

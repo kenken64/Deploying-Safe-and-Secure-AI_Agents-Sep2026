@@ -68,16 +68,10 @@ out.append(Content(text=summary.text, origin="operator", label=summary.agent))
 | verified user IDs | retrieved documents |
 | execution metadata | tool outputs, sub-agent summaries |
 
-```python
-def place(state: dict, items: list[Content]) -> dict:
-    if not settings.on("SECURE_STATE_SPLIT"):
-        return {"context": [to_dict(c) for c in items]}      # one flat pile
-
-    trusted, untrusted = [], []
-    for c in items:
-        (trusted if c.origin in TRUSTED_ORIGINS else untrusted).append(to_dict(c))
-    return {"context": trusted + untrusted, "untrusted": untrusted}
-```
+`agent/state.py`, `place`, is a stub that raises `NotImplementedError` once
+`SECURE_STATE_SPLIT` is on - that is your exercise. Sort `items` into two lists by
+`c.origin in TRUSTED_ORIGINS`, converting each with `to_dict(c)`, and return `{"context":
+trusted + untrusted, "untrusted": untrusted}`.
 
 Different fields. Different rules. **Never merged.**
 
@@ -95,26 +89,20 @@ These sound like software hygiene because they are. The twist is that here they 
 
 ### Step 3. Put a gate BETWEEN the nodes
 
-`agent/state.py`, `revalidate`, called at the top of `node_plan`:
-
-```python
-for c in state.get("context", []):
-    if c["origin"] not in TRUSTED_ORIGINS and directives.find(c["text"]):
-        c = {**c, "text": directives.strip(c["text"])}
-        changed += 1
-```
+`agent/state.py`, `revalidate`, called at the top of `node_plan`, is also a stub. Walk
+`state["context"]`; for every item whose origin is NOT in `TRUSTED_ORIGINS`, run its text
+through `directives.find` / `directives.strip`, replacing the text and counting a change
+when anything was found. Log how many items changed.
 
 Untrusted content is re-checked on the way past, every step - not once, when it arrived.
 That is what breaks the free ride.
 
 ### Step 4. Fence it every time it is rendered
 
-`for_model` re-wraps untrusted content **each time** the context is assembled, rather than
-trusting a tag applied once:
-
-```python
-Content(text=f'<untrusted origin="{c.origin}" source="{c.label}">\n{c.text}\n</untrusted>', ...)
-```
+`for_model`, also a stub, must re-wrap untrusted content **each time** the context is
+assembled, rather than trusting a tag applied once - each untrusted `Content` becomes one
+whose text is fenced as `<untrusted origin="..." source="...">...</untrusted>`, origin and
+label preserved.
 
 ## 5. Prove it
 

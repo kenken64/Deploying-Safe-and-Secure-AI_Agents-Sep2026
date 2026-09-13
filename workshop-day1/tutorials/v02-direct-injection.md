@@ -55,23 +55,20 @@ So the goal changes. For agents, intake validation is **not a wall**. It is:
 
 ## 5. Fix it - step by step
 
-### Step 1. Read the three layers
+### Step 1. Implement the three layers
 
-`agent/intake.py`, `secure_check`. Concentric, not sequential:
+`agent/intake.py`, `secure_check`, is a stub that raises `NotImplementedError` - that is
+your exercise. Its docstring spells out the contract. Write it as three concentric checks,
+outermost first, each returning as soon as it finds a reason to block:
 
-```python
-# layer 1 - structural: length, charset. Before the model sees anything.
-if len(text) > MAX_LEN:            return Verdict.block(...)
-if not ALLOWED_CHARS.match(text):  return Verdict.block(...)
+1. **structural** - before the model ever sees the text: block anything longer than
+   `MAX_LEN`, and anything containing a character outside `ALLOWED_CHARS`.
+2. **content** - walk `CONTENT_SHAPES`; if any pattern matches, block and name which shape
+   matched.
+3. **semantic** - call `_classify(text)`; if it reports a privilege claim, block. Be honest
+   about this layer: it has a real false-positive cost.
 
-# layer 2 - content: known injection shapes, delimiters, encodings.
-for name, pat in CONTENT_SHAPES:
-    if pat.search(text):           return Verdict.block(...)
-
-# layer 3 - semantic: intent. Be honest - this one has a real false-positive cost.
-if _classify(text) == "privilege_claim":
-                                   return Verdict.block(...)
-```
+If nothing blocks, allow the message through, noting that it passed all three layers.
 
 ### Step 2. Notice that layer 1 is an allowlist
 
@@ -99,10 +96,24 @@ python kestrel.py attack a2 --control SECURE_INTAKE
 
 ## 6. Prove it - and then prove the limit
 
+The narrowest check - just your three layers, no other tutorial's stub involved:
+
 ```
-python kestrel.py attack a2 --secure     # blocked at the content layer
-python kestrel.py attack a4 --secure     # the five payloads
+python kestrel.py test  # or: pytest tests/test_attacks.py -k validation_blocks_four
 ```
+
+`test_validation_blocks_four_of_five_payloads_and_misses_the_natural_one` calls
+`intake.check` directly against the five payloads below - it does not go through the full
+agent pipeline, so it is unaffected by any other tutorial's unfinished stub.
+
+```
+python kestrel.py attack a2 --control SECURE_INTAKE     # blocked at the content layer
+python kestrel.py attack a4 --control SECURE_INTAKE     # the five payloads
+```
+
+(`--secure` instead of `--control SECURE_INTAKE` turns on every control, so it will keep
+raising `NotImplementedError` until every stub across Day 1 is filled in - not just this
+one. Use `--control SECURE_INTAKE` while you are working on this tutorial specifically.)
 
 **Before you run `a4`, write down your prediction.** Which of these five does layered
 validation catch?

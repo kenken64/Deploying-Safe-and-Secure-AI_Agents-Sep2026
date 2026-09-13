@@ -72,53 +72,52 @@ def secure_execute(call: ToolCall, session: Session) -> ToolResult:
 
 
 def _validate_args(call: ToolCall, spec: tools.ToolSpec) -> None:
-    schema = spec.parameters
-    props: dict = schema.get("properties", {})
-    for key in call.args:
-        if key not in props:
-            # AMBER, not red. This is the control doing its job: the call never
-            # ran. Red means a breach got through, and the attack runner grades
-            # on exactly that - a control that reports itself as a breach makes
-            # the hardened build look like it is still bleeding.
-            board.light("schema_check", "amber",
-                        f"undeclared argument {key!r} on {call.name} - call refused")
-            raise Blocked("SECURE_EXECUTOR", f"undeclared argument {key!r} on {call.name}")
-    for key in schema.get("required", []):
-        if key not in call.args:
-            raise Blocked("SECURE_EXECUTOR", f"missing required argument {key!r}")
-    for key, value in call.args.items():
-        rule = props[key]
-        kind = rule.get("type")
-        if kind == "string" and not isinstance(value, str):
-            raise Blocked("SECURE_EXECUTOR", f"{key} must be a string")
-        if kind == "integer" and not isinstance(value, int):
-            raise Blocked("SECURE_EXECUTOR", f"{key} must be an integer")
-        if "enum" in rule and value not in rule["enum"]:
-            raise Blocked("SECURE_EXECUTOR", f"{key}={value!r} not in {rule['enum']}")
-        if "pattern" in rule:
-            import re
-            if not re.match(rule["pattern"], str(value)):
-                raise Blocked("SECURE_EXECUTOR", f"{key}={value!r} fails {rule['pattern']}")
-        if "minimum" in rule and isinstance(value, int) and value < rule["minimum"]:
-            raise Blocked("SECURE_EXECUTOR", f"{key} below minimum")
-        if "maximum" in rule and isinstance(value, int) and value > rule["maximum"]:
-            raise Blocked("SECURE_EXECUTOR", f"{key} above maximum")
+    """STUDENT EXERCISE - not implemented yet. (See tutorials/v05-tool-argument-injection.md.)
+
+    Enforce `spec.parameters` (a JSON schema) against `call.args`, raising
+    `Blocked("SECURE_EXECUTOR", reason)` on the first violation:
+
+      - any key in `call.args` not present in `schema["properties"]` is an
+        UNDECLARED argument - refuse the whole call (this is an allowlist: a
+        model that invents `{"sql": ...}` on `get_order` must be stopped here,
+        before anything runs). Also call
+        `board.light("schema_check", "amber", ...)` so the refusal is visible.
+      - every key in `schema["required"]` must be present.
+      - for each declared arg, check its rule: `type` (string/integer),
+        `enum`, `pattern` (regex, via `re.match`), `minimum`, `maximum`.
+
+    TODO(student): implement this. Until you do, `python kestrel.py attack a5
+    --secure` and `python kestrel.py test` will fail loudly.
+    """
+    raise NotImplementedError(
+        "executor._validate_args: TODO - enforce the declared JSON schema, "
+        "including rejecting undeclared arguments "
+        "(see tutorials/v05-tool-argument-injection.md)"
+    )
 
 
 def _validate_result(result: ToolResult, call: ToolCall) -> ToolResult:
     """Step 4. A compromised API is an injection channel (slide 40).
+    STUDENT EXERCISE - not implemented yet. (See tutorials/v06-tool-result-side-door.md.)
 
     Whatever comes back is about to become context, and the model will read it as
-    if you wrote it. So it gets the same treatment as any other untrusted text.
+    if you wrote it - so give it the same treatment as any other untrusted text:
+
+      - use `directives.find(result.text)` to look for instruction-shaped content.
+      - if any is found: call
+        `board.light("tool_boundary", "amber", f"instruction-shaped tool result from {call.name}")`,
+        log it with `board.record(...)` (verdict="sanitised", severity="warn",
+        control="SECURE_TOOL_RESULTS"), then neutralise it with
+        `result.text = directives.strip(result.text)`.
+      - return `result` either way.
+
+    TODO(student): implement this. Until you do, `python kestrel.py attack a6
+    --secure` and `python kestrel.py test` will fail loudly.
     """
-    found = directives.find(result.text)
-    if found:
-        board.light("tool_boundary", "amber", f"instruction-shaped tool result from {call.name}")
-        board.record(session="-", principal="-", node="tool_result", tool=call.name,
-                     detail=f"neutralised directives in tool result: {found}",
-                     verdict="sanitised", severity="warn", control="SECURE_TOOL_RESULTS")
-        result.text = directives.strip(result.text)
-    return result
+    raise NotImplementedError(
+        "executor._validate_result: TODO - treat tool output as untrusted input "
+        "(see tutorials/v06-tool-result-side-door.md)"
+    )
 
 
 def _watch_egress(session: Session, call: ToolCall, result: ToolResult) -> None:

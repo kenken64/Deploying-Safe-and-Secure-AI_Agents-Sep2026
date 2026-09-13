@@ -90,12 +90,11 @@ In `agent/graph.py`, `node_act`, `hitl.gate(...)` runs **before**
 
 ### Step 2. Freeze the call while the review is pending
 
-```python
-PENDING[approval_id] = Pending(..., args=dict(call.args),
-                               frozen=f"{call.name}({call.args})")
-```
-
-`dict(call.args)` is a copy, and `frozen` is a rendered snapshot.
+`agent/hitl.py`, `secure_gate`, is a stub that raises `NotImplementedError` - that is your
+exercise. When `gate_reason` returns a reason, generate an `approval_id`, store a `Pending`
+record keyed by it - `args=dict(call.args)` must be a COPY, and `frozen` a rendered
+snapshot of the call, e.g. `f"{call.name}({call.args})"` - then light `human_gate` amber,
+log it, and raise `NeedsApproval(call, reason, approval_id)`.
 
 > While a review is pending the state must be IMMUTABLE - **approve the thing you
 > reviewed, not one that changed underneath you.**
@@ -119,6 +118,13 @@ attached gives you three.
 ```
 python kestrel.py attack b7 --control SECURE_HITL
 ```
+
+`test_the_interrupt_fires_before_the_action_not_after`,
+`test_the_frozen_call_is_what_gets_approved`, and
+`test_small_refunds_stay_autonomous_so_reviewers_do_not_get_fatigued` all call
+`apply_profile("secure")`, but each calls `hitl.gate(...)` directly rather than going
+through the full pipeline - so in practice they only exercise `secure_gate`, and are a
+reliable narrow check while you work on this tutorial specifically.
 
 ```
   hitl       refund PAUSED for approval (apr_xxxx) - irreversible + high impact

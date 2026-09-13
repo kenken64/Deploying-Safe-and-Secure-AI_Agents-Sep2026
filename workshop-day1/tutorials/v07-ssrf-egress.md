@@ -52,14 +52,9 @@ it from its context; the context came from a customer.
 
 ### Step 1. Allowlist the hosts
 
-```python
-ALLOWED_HOSTS = {"api.shipping.example", "api.payments.example"}
-
-def _assert_allowed(url: str) -> None:
-    u = urlparse(url)
-    if u.scheme != "https" or (u.hostname or "") not in ALLOWED_HOSTS:
-        raise EgressDenied(url)
-```
+`agent/tools.py`, `_assert_allowed`, is a stub that raises `NotImplementedError` - that is
+your exercise. Parse `url`; raise `EgressDenied(url)` unless the scheme is `"https"` **and**
+the hostname is in `ALLOWED_HOSTS` (`{"api.shipping.example", "api.payments.example"}`).
 
 Allowlist, not denylist. You will never enumerate every internal address worth protecting,
 and you do not have to: `api.shipping.example` and `api.payments.example` are the only two
@@ -102,6 +97,14 @@ python kestrel.py attack a7 --control SECURE_EGRESS
 ```
 
 ## 5. Prove it
+
+```
+python kestrel.py attack a7 --control SECURE_EGRESS
+```
+
+There is no isolated unit test for this one; `--secure` and the full `python kestrel.py
+test` exercise every control at once, so they will keep raising `NotImplementedError`
+until every Day 1 stub is filled in, not just this one.
 
 ```
 python kestrel.py attack a7 --secure

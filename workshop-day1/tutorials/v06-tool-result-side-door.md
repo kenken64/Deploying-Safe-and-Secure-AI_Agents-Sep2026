@@ -74,18 +74,12 @@ the model, you have indirect injection through a side door.**
 
 ### Step 1. Treat tool output as untrusted input
 
-`agent/executor.py`, step 4:
-
-```python
-def _validate_result(result: ToolResult, call: ToolCall) -> ToolResult:
-    found = directives.find(result.text)
-    if found:
-        board.light("tool_boundary", "amber", f"instruction-shaped tool result from {call.name}")
-        board.record(..., detail=f"neutralised directives in tool result: {found}",
-                     verdict="sanitised", severity="warn")
-        result.text = directives.strip(result.text)
-    return result
-```
+`agent/executor.py`, step 4, `_validate_result`, is a stub that raises
+`NotImplementedError` - that is your exercise. Use `directives.find(result.text)` to look
+for instruction-shaped content in whatever the tool just returned. If any is found: light
+`tool_boundary` amber, log a record noting what was neutralised (`verdict="sanitised"`,
+`severity="warn"`, `control="SECURE_TOOL_RESULTS"`), and replace `result.text` with
+`directives.strip(result.text)`. Return `result` either way.
 
 Two outputs, and you want both:
 
@@ -106,6 +100,14 @@ python kestrel.py attack a6 --control SECURE_TOOL_RESULTS --control SECURE_TOOLS
 ```
 
 ## 6. Prove it
+
+```
+python kestrel.py attack a6 --control SECURE_TOOL_RESULTS --control SECURE_TOOLS --control SECURE_EXECUTOR
+```
+
+There is no isolated unit test for this one; `--secure` and the full `python kestrel.py
+test` exercise every control at once, so they will keep raising `NotImplementedError`
+until every Day 1 stub is filled in, not just this one.
 
 ```
 python kestrel.py attack a6 --secure
