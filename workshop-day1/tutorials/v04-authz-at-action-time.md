@@ -6,6 +6,28 @@ The question nobody asks until the incident review: whose authority is the agent
 
 ---
 
+## What you are about to see
+
+This page re-runs attacks you have already met - `a1`, `a2` and `a4` - and asks a different
+question of them: **when** was permission checked?
+
+A check at the start of a conversation is stale by the time a refund fires, because
+everything in between is text the model can be talked into. The identity the agent
+*received* and the identity it *believes* have had several turns to drift apart.
+
+| The attacks | `a1`, `a2`, `a4` - revisited |
+|---|---|
+| Who runs it | Alice (`CUST-1001`), then a claim to be a supervisor |
+| The question | Not "was this user allowed?" but "is this **action**, with **these arguments**, allowed **right now**?" |
+| Closed by | `SECURE_AUTHZ` - three levels, checked at the action |
+| Also here | `SECURE_NO_CREDS_IN_STATE` - if it is in state, it is in a checkpoint |
+
+**Watch where the refusal happens.** With action-time RBAC on, the model may still be
+perfectly steered - it asks for the refund anyway. The difference is that code, below the
+model, says no at the point of action rather than trusting a decision made turns earlier.
+
+---
+
 ## 1. Run the attack
 
 ```

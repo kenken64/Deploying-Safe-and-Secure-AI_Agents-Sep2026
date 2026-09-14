@@ -4,6 +4,29 @@
 
 ---
 
+## What you are about to see
+
+Ben has a perfectly ordinary support conversation. Every step of it is checkpointed - a
+full copy of the agent's state, saved under a thread id. Then Alice, a different customer,
+changes one digit of her own thread id and reads his entire conversation: his order, his
+address, what he asked and what the agent answered.
+
+| The attack | `b3` |
+|---|---|
+| Who runs it | Alice (`CUST-1001`), guessing at Ben's (`CUST-1002`) threads |
+| What they do | Change `thread-1001` to `thread-1002`, and read |
+| Entry point | A guessed thread id |
+| Execution stage | Stored state |
+| Impact | Another user's entire conversation history |
+
+> Same wall as yesterday's tenancy filter, different room. Live queries then; stored state
+> now. `thread-1002` is one digit away from `thread-1001`.
+
+**Watch `data_boundary` and `state_containment`.** Day 1's tenancy filter is on and working
+perfectly - it guards *queries*. Nothing was guarding the store those queries get saved into.
+
+---
+
 ## 1. Run the attack
 
 ```

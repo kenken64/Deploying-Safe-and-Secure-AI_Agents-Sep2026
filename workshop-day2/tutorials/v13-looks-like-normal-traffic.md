@@ -6,6 +6,25 @@
 
 ---
 
+## What you are about to see
+
+**This page has no attack of its own, and that is the lesson.** An attack that looks like
+normal traffic is not something you can fire on demand and point at - so instead you re-read
+the board from the attacks you have already run, and ask a different question of it.
+
+Not *"did something fail?"* - nothing failed. But *"is this shape normal?"*
+
+| The block | Block 8 - behavioural observability |
+|---|---|
+| Closed by | `SECURE_TELEMETRY` |
+| The attack it catches | `b6` - the one that returned 200 and leaked anyway |
+| The distinction | Controls **prevent**. Observability **detects**. You need both. |
+
+**Re-run `b6` with `SECURE_TELEMETRY` on and watch the `detection` light**, then read the
+trace. Prevention blocked the call; detection is what tells you somebody tried.
+
+---
+
 ## 1. The distinction the block hangs on
 
 | PREVENT - security controls | DETECT - observability |

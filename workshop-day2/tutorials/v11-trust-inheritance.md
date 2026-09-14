@@ -6,6 +6,33 @@ This is the attack you were promised at the end of Day 1. Start here.
 
 ---
 
+## What you are about to see
+
+Kestrel consults two helper agents. Neither can do anything dangerous: `policy_helper` reads
+the help centre, `account_helper` summarises an account, and **neither has a single tool**.
+Kestrel can refund, cancel and email. The attack lives entirely in the gap between them.
+
+This page carries two attacks - `b1` is the Day 2 opening demo, `b5` is the same mechanism
+stated plainly.
+
+| The attacks | `b1` and `b5` |
+|---|---|
+| Who runs it | Alice (`CUST-1001`) - an ordinary customer asking an ordinary question |
+| `b1` asks | *"What happens to my order history data after a year?"* |
+| `b5` asks | *"Are there shipping delays over public holidays?"* |
+| Entry point | The **least**-privileged agent in the system |
+| Execution stage | Sub-agent return, into trusted state |
+| Impact | Order history emailed to an outside domain, with the **most**-privileged agent's authority |
+
+> The payload never went near the chat box: it was read by the policy helper, summarised,
+> and handed to Kestrel as if one of your own components had written it.
+
+**Watch every Day 1 light stay green.** That is the point of this page. Intake validation,
+provenance tagging, narrow tools, the executor, RBAC, the tenancy filter - all on, all
+reporting fine. The attack did not arrive as input, so nothing at the input could catch it.
+
+---
+
 ## 1. Run the attack
 
 ```

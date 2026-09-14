@@ -315,16 +315,32 @@ def _markdown(text: str) -> str:
     to install, on any of the three operating systems."""
     out: list[str] = []
     in_code = in_list = in_table = False
+    # A hard-wrapped paragraph is ONE paragraph. Rendering each source line as
+    # its own <p> broke the typography on every page, and split inline spans
+    # that open on one line and close on the next - **like this** - leaving the
+    # asterisks on screen. Buffer the run of lines and render it once.
+    para: list[str] = []
+    quote: list[str] = []
+
+    def flush() -> None:
+        if para:
+            out.append(f"<p>{_inline(_esc(' '.join(para)))}</p>")
+            para.clear()
+        if quote:
+            out.append(f"<blockquote>{_inline(_esc(' '.join(quote)))}</blockquote>")
+            quote.clear()
+
     for raw in text.splitlines():
         if raw.startswith("```"):
+            flush()
             out.append("</code></pre>" if in_code else '<pre><code>')
             in_code = not in_code
             continue
         if in_code:
             out.append(_esc(raw))
             continue
-        line = _inline(_esc(raw))
         if raw.startswith("|") and "|" in raw[1:]:
+            flush()
             cells = [c.strip() for c in raw.strip().strip("|").split("|")]
             if set("".join(cells)) <= set("-: "):
                 continue
@@ -339,6 +355,7 @@ def _markdown(text: str) -> str:
             out.append("</table>")
             in_table = False
         if re.match(r"^\s*(?:-{3,}|\*{3,}|_{3,})\s*$", raw):
+            flush()
             out.append("<hr>")
             continue
         if m := re.match(r"^(#{1,4})\s+(.*)$", raw):
@@ -346,6 +363,7 @@ def _markdown(text: str) -> str:
             out.append(f'<h{level} id="{_slug(text)}">{_inline(_esc(text))}</h{level}>')
             continue
         if re.match(r"^\s*[-*]\s+", raw) or re.match(r"^\s*\d+\.\s+", raw):
+            flush()
             if not in_list:
                 out.append("<ul>")
                 in_list = True
@@ -355,12 +373,18 @@ def _markdown(text: str) -> str:
             out.append("</ul>")
             in_list = False
         if raw.startswith(">"):
-            out.append(f"<blockquote>{line.lstrip('&gt;').strip()}</blockquote>")
+            if para:
+                flush()
+            quote.append(raw.lstrip(">").strip())
             continue
+        if quote:
+            flush()
         if not raw.strip():
+            flush()
             out.append("")
             continue
-        out.append(f"<p>{line}</p>")
+        para.append(raw.strip())
+    flush()
     for closer, flag in (("</ul>", in_list), ("</table>", in_table), ("</code></pre>", in_code)):
         if flag:
             out.append(closer)
