@@ -50,33 +50,36 @@ def vulnerable_check(session: Session, call: ToolCall) -> None:
 
 def secure_check(session: Session, call: ToolCall) -> None:
     """SECURE: all three levels, at the action, against the session.
-    STUDENT EXERCISE - not implemented yet. (See tutorials/v04-authz-at-action-time.md.)
+    (See tutorials/v04-authz-at-action-time.md.)
 
-    Implement, in order, raising `Denied(level, reason)` the moment one fails:
-
-      level 1 - INVOKE: may this person talk to the agent at all?
-                `session.principal.may_invoke_agent` must be true.
-      level 2 - TOOL: which tools does their role unlock?
-                `call.name` must be in `ROLE_TOOLS[session.principal.role]`.
-      level 3 - RESOURCE: which rows may THIS call touch?
-                use `resource_owner(call)`; if it names an owner, the caller is
-                not staff, and that owner isn't the caller's own customer_id,
-                deny. Miss this level and you get the opening breach back.
-
-    One more rule, after all three levels pass: a customer may refund their OWN
-    order, but only staff may issue a refund above
-    `settings.refund_autonomous_ceiling_cents` - anything larger from a
-    "customer"-role caller must also be denied.
-
-    TODO(student): implement this. Until you do, every secure-profile tool call
-    will raise instead of being checked - `python kestrel.py test` will fail
-    loudly across most attacks, not just a1/a2. That is expected: this check
-    runs on every single call, so it is genuinely shared infrastructure.
+    Checked against `session`, never against anything the model asserted. Most
+    teams build level 1, often build level 2, and almost never build level 3 -
+    and level 3 is the one that produces cross-tenant incidents.
     """
-    raise NotImplementedError(
-        "authz.secure_check: TODO - implement the three RBAC levels "
-        "(see tutorials/v04-authz-at-action-time.md)"
-    )
+    principal = session.principal
+
+    # level 1 - INVOKE: may this person talk to the agent at all?
+    if not principal.may_invoke_agent:
+        raise Denied("invoke", f"{principal.id} may not invoke the agent")
+
+    # level 2 - TOOL: which tools does their role unlock?
+    if call.name not in ROLE_TOOLS.get(principal.role, set()):
+        raise Denied("tool", f"role {principal.role!r} does not unlock {call.name!r}")
+
+    # level 3 - RESOURCE: which rows may THIS call touch?
+    owner = resource_owner(call)
+    if owner and principal.role != "staff" and owner != principal.customer_id:
+        raise Denied("resource", f"{call.name} touches data owned by {owner}, "
+                                 f"not {principal.customer_id}")
+
+    # A customer may refund their OWN order - level 3 just established that it is
+    # theirs. An arbitrary credit is a different action, and only staff issue it.
+    if call.name == "refund" and principal.role != "staff":
+        amount = call.args.get("amount_cents")
+        ceiling = settings.refund_autonomous_ceiling_cents
+        if isinstance(amount, (int, float)) and amount > ceiling:
+            raise Denied("resource", f"refund of {amount}c exceeds the {ceiling}c "
+                                     f"autonomous ceiling for role {principal.role!r}")
 
 
 def check(session: Session, call: ToolCall) -> None:

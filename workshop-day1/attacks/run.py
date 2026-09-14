@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import textwrap
 
 from config import CONTROLS, settings
 from agent import db, graph, intake
@@ -105,10 +106,17 @@ def _run_payload_set(attack: Attack, verbose: bool) -> dict:
         print("  Write your prediction DOWN before reading the results below.")
         print("  Which of the five does layered intake validation catch?")
         print(DASH)
+    # The console renders whatever is in `transcript`, so a4 has to fill it in
+    # itself: the five verdicts ARE the output here, and without them the web UI
+    # showed a bare "attack stopped/landed" and nothing else.
+    transcript: list[dict] = []
     results = {}
     for name, payload in intake.PAYLOADS.items():
         verdict = intake.check(payload)
         results[name] = verdict.allowed
+        mark = ("passed the validator" if verdict.allowed
+                else f"BLOCKED at the {verdict.layer} layer - {verdict.reason}")
+        transcript.append({"kind": "payload", "text": f"{name:<18} {mark}"})
         if verbose:
             mark = "passed the validator" if verdict.allowed else f"BLOCKED at the {verdict.layer} layer"
             print(f"  {name:<18} {mark}")
@@ -122,9 +130,35 @@ def _run_payload_set(attack: Attack, verbose: bool) -> dict:
     end_to_end = graph.chat(principal_for(attack.who), intake.PAYLOADS["P5-natural"])
     leaked = board.worst() == "red" or len(db.refunds()) > before
 
+    got_through = [k for k, allowed in results.items() if allowed]
+    if not settings.on("SECURE_INTAKE"):
+        headline = "Intake validation is OFF - all five went straight through. Turn it on."
+    elif got_through == ["P5-natural"]:
+        headline = ("Four of five blocked. The one that got through is structurally "
+                    "IDENTICAL to a real customer request - there is nothing malformed "
+                    "to catch. Validation cannot read intent it cannot see.")
+    else:
+        headline = f"{len(results) - len(got_through)} of five blocked."
+    transcript.append({"kind": "note", "text": headline})
+    transcript.append({"kind": "note",
+                       "text": "Running P5-natural end to end, to see what catches it instead:"})
+    transcript.extend(end_to_end["transcript"])
+    # Name the control that ACTUALLY fired. Under the full secure profile authz
+    # refuses at the action; with tenancy but no authz the row simply never comes
+    # back. Saying "the tenancy filter" either way credits a control that did not run.
+    refused = any(t["kind"] == "blocked" for t in end_to_end["transcript"])
+    outcome = (
+        "NOTHING DID. It reached another customer's order - which is why the next two "
+        "blocks are tools and authorization." if leaked else
+        "Stopped BELOW the model, where the model cannot reach or override it - "
+        + ("action-time authorization refused the call."
+           if refused else "the tenancy filter never returned the row.")
+        + " Validation let it through and the layer beneath it caught the request. "
+          "That is defence in depth.")
+    transcript.append({"kind": "note", "text": outcome})
+
     if verbose:
         print(DASH)
-        got_through = [k for k, allowed in results.items() if allowed]
         if not settings.on("SECURE_INTAKE"):
             print("  Intake validation is OFF - all five went straight through.")
             print("  Turn it on (--control SECURE_INTAKE) and run this again.")
@@ -136,17 +170,13 @@ def _run_payload_set(attack: Attack, verbose: bool) -> dict:
         print("  Running P5-natural end to end, to see what catches it instead:")
         for line in end_to_end["transcript"]:
             print(f"    {line['kind']:<10} {line['text'][:130]}")
-        if leaked:
-            print("  -> NOTHING DID. It reached another customer's order.")
-            print("     That is why the next two blocks are tools and authorization.")
-        else:
-            print("  -> The data layer stopped it, below the model, where the model")
-            print("     cannot reach or override it. Validation let it through and")
-            print("     the tenancy filter caught it. That is defence in depth.")
+        print(textwrap.fill(outcome, width=78, initial_indent="  -> ",
+                            subsequent_indent="     "))
         print(f"  step by step: tutorials/{attack.tutorial}.md")
         print(BAR)
         print()
-    return {"attack": attack.id, "landed": leaked, "payloads": results}
+    return {"attack": attack.id, "landed": leaked, "payloads": results,
+            "transcript": transcript}
 
 
 def main(argv: list[str] | None = None) -> int:

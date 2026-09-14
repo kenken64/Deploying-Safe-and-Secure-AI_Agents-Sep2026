@@ -13,6 +13,8 @@ file: the output guardrail IS step 4, behavioural telemetry IS step 5.
 """
 from __future__ import annotations
 
+import re
+
 from config import settings
 from agent import authz, db, directives, tools
 from agent.models import (Blocked, Content, Denied, Session, ToolCall, ToolResult)
@@ -59,7 +61,7 @@ def secure_execute(call: ToolCall, session: Session) -> ToolResult:
 
     # step 4 - validate what comes back (surface 4, the side door - slide 40)
     if settings.on("SECURE_TOOL_RESULTS"):
-        result = _validate_result(result, call)
+        result = _validate_result(result, call, session)
 
     # step 5 - log
     board.record(session=session.id, principal=session.principal.id, node="tool",
@@ -72,52 +74,84 @@ def secure_execute(call: ToolCall, session: Session) -> ToolResult:
 
 
 def _validate_args(call: ToolCall, spec: tools.ToolSpec) -> None:
-    """STUDENT EXERCISE - not implemented yet. (See tutorials/v05-tool-argument-injection.md.)
-
-    Enforce `spec.parameters` (a JSON schema) against `call.args`, raising
-    `Blocked("SECURE_EXECUTOR", reason)` on the first violation:
+    """Step 1. Enforce `spec.parameters` (a JSON schema) against `call.args`,
+    raising `Blocked("SECURE_EXECUTOR", reason)` on the first violation.
+    (See tutorials/v05-tool-argument-injection.md.)
 
       - any key in `call.args` not present in `schema["properties"]` is an
-        UNDECLARED argument - refuse the whole call (this is an allowlist: a
-        model that invents `{"sql": ...}` on `get_order` must be stopped here,
-        before anything runs). Also call
-        `board.light("schema_check", "amber", ...)` so the refusal is visible.
+        UNDECLARED argument - refuse the whole call. This is an allowlist: a
+        model that invents `{"sql": ...}` on `get_order` is stopped here,
+        before anything runs.
       - every key in `schema["required"]` must be present.
-      - for each declared arg, check its rule: `type` (string/integer),
-        `enum`, `pattern` (regex, via `re.match`), `minimum`, `maximum`.
-
-    TODO(student): implement this. Until you do, `python kestrel.py attack a5
-    --secure` and `python kestrel.py test` will fail loudly.
+      - each declared value is checked against its rule: `type`
+        (string/integer), `enum`, `pattern` (regex, via `re.match`),
+        `minimum`, `maximum`.
     """
-    raise NotImplementedError(
-        "executor._validate_args: TODO - enforce the declared JSON schema, "
-        "including rejecting undeclared arguments "
-        "(see tutorials/v05-tool-argument-injection.md)"
-    )
+    schema = spec.parameters or {}
+    properties = schema.get("properties", {})
+
+    def refuse(reason: str) -> None:
+        board.light("schema_check", "amber", reason)
+        raise Blocked("SECURE_EXECUTOR", reason)
+
+    # undeclared arguments - an allowlist, not a denylist
+    for key in call.args:
+        if key not in properties:
+            refuse(f"{call.name}: undeclared argument {key!r}")
+
+    # required arguments
+    for key in schema.get("required", []):
+        if key not in call.args:
+            refuse(f"{call.name}: missing required argument {key!r}")
+
+    # per-argument rules
+    type_checks = {
+        "string": lambda v: isinstance(v, str),
+        "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    }
+    for key, value in call.args.items():
+        rule = properties[key]
+        expected = rule.get("type")
+        if expected in type_checks and not type_checks[expected](value):
+            refuse(f"{call.name}: argument {key!r} must be {expected}, got {value!r}")
+        if "enum" in rule and value not in rule["enum"]:
+            refuse(f"{call.name}: argument {key!r}={value!r} not in {rule['enum']}")
+        if "pattern" in rule and not (isinstance(value, str)
+                                      and re.match(rule["pattern"], value)):
+            refuse(f"{call.name}: argument {key!r}={value!r} fails pattern "
+                   f"{rule['pattern']!r}")
+        if "minimum" in rule and not (isinstance(value, (int, float))
+                                      and value >= rule["minimum"]):
+            refuse(f"{call.name}: argument {key!r}={value!r} below minimum "
+                   f"{rule['minimum']}")
+        if "maximum" in rule and not (isinstance(value, (int, float))
+                                      and value <= rule["maximum"]):
+            refuse(f"{call.name}: argument {key!r}={value!r} above maximum "
+                   f"{rule['maximum']}")
 
 
-def _validate_result(result: ToolResult, call: ToolCall) -> ToolResult:
+def _validate_result(result: ToolResult, call: ToolCall, session: Session) -> ToolResult:
     """Step 4. A compromised API is an injection channel (slide 40).
-    STUDENT EXERCISE - not implemented yet. (See tutorials/v06-tool-result-side-door.md.)
 
     Whatever comes back is about to become context, and the model will read it as
-    if you wrote it - so give it the same treatment as any other untrusted text:
+    if you wrote it - so it gets the same treatment as any other untrusted text.
 
-      - use `directives.find(result.text)` to look for instruction-shaped content.
-      - if any is found: call
-        `board.light("tool_boundary", "amber", f"instruction-shaped tool result from {call.name}")`,
-        log it with `board.record(...)` (verdict="sanitised", severity="warn",
-        control="SECURE_TOOL_RESULTS"), then neutralise it with
-        `result.text = directives.strip(result.text)`.
-      - return `result` either way.
-
-    TODO(student): implement this. Until you do, `python kestrel.py attack a6
-    --secure` and `python kestrel.py test` will fail loudly.
+    Two outputs, and you want both: the instruction never reaches the model, and
+    a light plus a log line say a third party tried to steer your agent. The
+    detection is worth as much as the block.
     """
-    raise NotImplementedError(
-        "executor._validate_result: TODO - treat tool output as untrusted input "
-        "(see tutorials/v06-tool-result-side-door.md)"
-    )
+    found = directives.find(result.text)
+    if found:
+        board.light("tool_boundary", "amber",
+                    f"instruction-shaped tool result from {call.name}")
+        board.record(session=session.id, principal=session.principal.id, node="tool",
+                     tool=call.name, args_fingerprint=call.fingerprint(),
+                     verdict="sanitised", severity="warn",
+                     control="SECURE_TOOL_RESULTS",
+                     detail=f"{call.name} returned {', '.join(found)} - neutralised "
+                            f"before it reached the model")
+        result.text = directives.strip(result.text)
+    return result
 
 
 def _watch_egress(session: Session, call: ToolCall, result: ToolResult) -> None:

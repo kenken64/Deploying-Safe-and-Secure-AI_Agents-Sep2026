@@ -38,7 +38,8 @@
       <div class="meta"><b>{{ a.name }}</b>
         <span>surface {{ a.surface }} &middot; {{ a.entry_point }} &rarr; {{ a.stage }} &rarr; {{ a.impact }}</span><br>
         <span>fix: {% for c in a.closed_by %}<span class="pill">{{ c }}</span>{% endfor %}
-        <a href="/tutorial/{{ a.tutorial }}">step-by-step &rarr;</a></span>
+        <a href="/tutorial/{{ a.tutorial }}{% if a.tutorial_anchor %}#{{ a.tutorial_anchor }}{% endif %}"
+           >step-by-step: {{ a.tutorial.split('-')[0] }} &rarr;</a></span>
       </div>
     </div>
     {% endfor %}

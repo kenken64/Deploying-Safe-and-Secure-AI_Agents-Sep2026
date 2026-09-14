@@ -173,30 +173,28 @@ def vulnerable_query(sql: str) -> list[dict[str, Any]]:
 
 
 def secure_orders_for(principal: Principal, order_id: str | None = None) -> list[dict[str, Any]]:
-    """SECURE (Day 1, slide 50, rule 2). STUDENT EXERCISE - not implemented yet.
+    """SECURE (Day 1, slide 50, rule 2).
 
-    This must become the ONLY way to reach orders. Three requirements, all
-    deliberate (see tutorials/v01-cross-tenant-leak.md, Step 1):
+    The ONLY way to reach orders. Three requirements, all deliberate
+    (see tutorials/v01-cross-tenant-leak.md, Step 1):
 
-      1. The tenancy predicate is NOT secure_ordersoptional. There must be no code path
+      1. The tenancy predicate is NOT optional. There is no code path
          through this function that can return a row without it.
       2. The customer id comes from `principal` (the authenticated session) -
          never from `order_id` or any other caller-supplied argument.
       3. All SQL is parameterised. No f-strings, no string interpolation -
          even though the input now "only" comes from your own code.
 
-    When `order_id` is given, the result must additionally be narrowed to
-    that one order - and still return nothing at all if that order belongs
-    to a different customer.
-
-    TODO(student): implement this. Until you do, `python kestrel.py attack a1
-    --secure` and `python kestrel.py test` will fail loudly - that is your
-    signal to write this function, not proof anything is already safe.
+    When `order_id` is given, the result is additionally narrowed to that one
+    order - and returns nothing at all if that order belongs to a different
+    customer. From the caller's point of view, another tenant's order simply
+    does not exist.
     """
-    raise NotImplementedError(
-        "secure_orders_for: TODO - scope every query to principal.customer_id "
-        "(see tutorials/v01-cross-tenant-leak.md)"
-    )
+    if order_id is None:
+        return rows("SELECT * FROM orders WHERE customer_id = ?",
+                    (principal.customer_id,))
+    return rows("SELECT * FROM orders WHERE customer_id = ? AND id = ?",
+                (principal.customer_id, order_id))
 
 
 def order_owner(order_id: str) -> str | None:

@@ -42,31 +42,39 @@ def vulnerable_check(text: str) -> Verdict:
 
 def secure_check(text: str) -> Verdict:
     """SECURE: three concentric layers, outermost first (slide 30).
-    STUDENT EXERCISE - not implemented yet.
+    (See tutorials/v02-direct-injection.md.)
 
     Concentric, NOT sequential - each layer is a different kind of wrongness, and
-    layering them is the point. Do not rely on any one of them. (See
-    tutorials/v02-direct-injection.md.)
+    layering them is the point. Do not rely on any one of them.
 
       layer 1 - structural. Before the model ever sees the text: reject anything
                 over MAX_LEN, and anything containing a character outside
-                ALLOWED_CHARS. Return Verdict.block(..., layer="structural").
-      layer 2 - content. Walk CONTENT_SHAPES; if any pattern matches, block with
-                Verdict.block(f"known injection shape: {name}", layer="content").
+                ALLOWED_CHARS.
+      layer 2 - content. Walk CONTENT_SHAPES; if any pattern matches, block and
+                name which shape matched.
       layer 3 - semantic. Call _classify(text); if it returns "privilege_claim",
-                block with Verdict.block(..., layer="semantic"). This layer has a
-                real false-positive cost and will flag legitimate customers - that
-                is not a bug to hide.
+                block. This layer has a real false-positive cost and will flag
+                legitimate customers - that is not a bug to hide.
 
-    If nothing blocks, return Verdict.allow(layer="passed all three layers").
-
-    TODO(student): implement this. Until you do, `python kestrel.py attack a2
-    --secure` and `python kestrel.py test` will fail loudly.
+    If nothing blocks, the message passes all three layers.
     """
-    raise NotImplementedError(
-        "intake.secure_check: TODO - implement the three concentric layers "
-        "(see tutorials/v02-direct-injection.md)"
-    )
+    # layer 1 - structural. An allowlist, so it fails safe.
+    if len(text) > MAX_LEN:
+        return Verdict.block(f"too long: {len(text)} chars > {MAX_LEN}",
+                             layer="structural")
+    if not ALLOWED_CHARS.match(text):
+        return Verdict.block("characters outside the allowlist", layer="structural")
+
+    # layer 2 - content. Known injection shapes.
+    for name, pattern in CONTENT_SHAPES:
+        if pattern.search(text):
+            return Verdict.block(f"known injection shape: {name}", layer="content")
+
+    # layer 3 - semantic. Privilege claims, at a real false-positive cost.
+    if _classify(text) == "privilege_claim":
+        return Verdict.block("privilege claim detected", layer="semantic")
+
+    return Verdict.allow(layer="passed all three layers")
 
 
 def _classify(text: str) -> str:

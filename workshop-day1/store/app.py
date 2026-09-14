@@ -21,7 +21,7 @@ from config import CONTROLS, PROFILES, settings
 from agent import db, graph, llm
 from agent.models import Principal
 from agent.telemetry import LIGHTS, board
-from attacks.catalogue import ATTACKS, ORDER
+from attacks.catalogue import ATTACKS, ORDER, TUTORIAL_LABS
 from attacks.run import run_one
 
 HERE = Path(__file__).resolve().parent
@@ -127,7 +127,21 @@ def tutorial_index(request: Request):
 
 def lab_for(slug: str) -> dict | None:
     """Wire each tutorial to the attack it explains and the controls that close it,
-    so the whole loop - run it, read it, fix it, prove it - happens on one page."""
+    so the whole loop - run it, read it, fix it, prove it - happens on one page.
+
+    Most pages are derived: an attack names its tutorial, so the page owns it.
+    TUTORIAL_LABS overrides that for the page the derivation cannot reach (v04 -
+    see the note in attacks/catalogue.py).
+    """
+    if override := TUTORIAL_LABS.get(slug):
+        related = [ATTACKS[a] for a in override["attacks"]]
+        controls = [k for k in override["controls"] if k in CONTROLS]
+        return {
+            "attacks": [{"id": a.id, "name": a.name, "message": a.message,
+                         "note": a.note} for a in related],
+            "controls": [{"key": k, "on": settings.on(k), **CONTROLS[k]} for k in controls],
+        }
+
     related = [a for a in ATTACKS.values() if a.tutorial == slug]
     if not related:
         return None
@@ -259,7 +273,8 @@ def _markdown(text: str) -> str:
             out.append("</table>")
             in_table = False
         if m := re.match(r"^(#{1,4})\s+(.*)$", raw):
-            out.append(f"<h{len(m.group(1))}>{_inline(_esc(m.group(2)))}</h{len(m.group(1))}>")
+            level, text = len(m.group(1)), m.group(2)
+            out.append(f'<h{level} id="{_slug(text)}">{_inline(_esc(text))}</h{level}>')
             continue
         if re.match(r"^\s*[-*]\s+", raw) or re.match(r"^\s*\d+\.\s+", raw):
             if not in_list:
@@ -281,6 +296,11 @@ def _markdown(text: str) -> str:
         if flag:
             out.append(closer)
     return "\n".join(out)
+
+
+def _slug(s: str) -> str:
+    """Heading -> anchor id. `Attack.tutorial_anchor` is written against this."""
+    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
 
 
 def _esc(s: str) -> str:

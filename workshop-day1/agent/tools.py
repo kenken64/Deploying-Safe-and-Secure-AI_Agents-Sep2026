@@ -137,19 +137,20 @@ MAX_REFUND_CENTS = 200_000
 
 
 def _assert_allowed(url: str) -> None:
-    """STUDENT EXERCISE - not implemented yet. (See tutorials/v07-ssrf-egress.md.)
+    """Allowlist, not denylist. (See tutorials/v07-ssrf-egress.md.)
 
-    Parse `url`. Raise `EgressDenied(url)` unless the scheme is `"https"` AND
-    the hostname is in `ALLOWED_HOSTS`. Allowlist, not denylist - you will never
-    enumerate every internal address worth protecting.
+    You will never enumerate every internal address worth protecting - metadata
+    endpoints, localhost, the admin box, file:// - and you do not have to. These
+    two hosts are the only ones this tool has any business reaching, so anything
+    else is refused by default, including whatever gets stood up next month.
 
-    TODO(student): implement this. Until you do, `python kestrel.py attack a7
-    --secure` and `python kestrel.py test` will fail loudly.
+    Production needs three more things this lab leaves out: reject hostnames that
+    RESOLVE into private ranges, refuse redirects (or re-check every hop), and
+    connect to the IP you checked so DNS cannot change its answer underneath you.
     """
-    raise NotImplementedError(
-        "tools._assert_allowed: TODO - allowlist scheme=https and hostname in "
-        "ALLOWED_HOSTS (see tutorials/v07-ssrf-egress.md)"
-    )
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
+        raise EgressDenied(url)
 
 
 def _t_get_order(args: dict, session: Session) -> ToolResult:
