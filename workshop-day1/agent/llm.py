@@ -272,6 +272,11 @@ class OpenAICompatLLM:
                 args = json.loads(fn.get("arguments") or "{}")
             except json.JSONDecodeError:
                 args = {}
+            # A small model will happily send `"arguments": "null"`, or a bare
+            # string, where the schema asked for an object. Everything downstream
+            # treats args as a dict; coerce here rather than crash at the far end.
+            if not isinstance(args, dict):
+                args = {}
             return Completion(tool_call=ToolCall(fn["name"], args), tokens=tokens,
                               model=self.model,
                               rationale="a real model decided this; it cannot tell you why")
