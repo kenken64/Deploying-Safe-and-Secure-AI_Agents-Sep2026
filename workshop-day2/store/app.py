@@ -23,6 +23,7 @@ from agent.models import Principal
 from agent.telemetry import LIGHTS, board
 from attacks.catalogue import ATTACKS, ORDER
 from store import flow as flowsvg
+from store import gate
 from attacks.run import run_one
 
 HERE = Path(__file__).resolve().parent
@@ -74,6 +75,32 @@ async def _model_badge(request: Request, call_next):
     """Every page says which model is driving the agent. Students should never
     have to discover that the model is a stand-in - it is on screen the whole time."""
     return await call_next(request)
+
+
+@app.middleware("http")
+async def _access_gate(request: Request, call_next):
+    """No-op unless KESTREL_ACCESS_PASSWORD is set. See store/gate.py."""
+    if request.url.path in gate.OPEN_PATHS or gate.authorised(request):
+        return await call_next(request)
+    return gate.login_page()
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_form():
+    if not gate.enabled():
+        return RedirectResponse("/")
+    return gate.login_page()
+
+
+@app.post("/login")
+async def login_submit(request: Request):
+    return gate.sign_in(gate.submitted_password(await request.body()))
+
+
+@app.get("/healthz")
+def healthz():
+    """For the platform's health check, which runs before anyone signs in."""
+    return JSONResponse({"ok": True})
 
 
 def model_badge() -> dict:

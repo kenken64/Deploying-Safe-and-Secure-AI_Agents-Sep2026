@@ -86,6 +86,7 @@ The docs are numbered but **not meant to be read 00→06 in sequence.** Pick you
 | [`workshop-day1/README.md`](workshop-day1/README.md) | Day 1 lab: setup, attacks, controls | At a laptop |
 | [`workshop-day2/README.md`](workshop-day2/README.md) | Day 2 lab: same, for the interior | At a laptop |
 | `workshop-day*/tutorials/*.md` | One per vulnerability: see it, then fix it | What participants work through |
+| [`DEPLOY.md`](DEPLOY.md) | Running each day as its own hosted service, and the password gate | Hosting the lab instead of laptops |
 | [`workshop-day1/ANSWER-KEY.md`](workshop-day1/ANSWER-KEY.md) | `a1`-`a7`: the flaw, the fix, the line number. Also served per-attack, collapsed, on each tutorial page | Marking, and after the room has fought it |
 | [`workshop-day2/ANSWER-KEY.md`](workshop-day2/ANSWER-KEY.md) | `b1`-`b8`: the same, for the interior | Marking Day 2 |
 

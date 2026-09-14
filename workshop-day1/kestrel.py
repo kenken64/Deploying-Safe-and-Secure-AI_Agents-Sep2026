@@ -168,20 +168,35 @@ def cmd_setup(_argv: list[str]) -> int:
 
 # -------------------------------------------------------------------------- run ------
 def cmd_run(argv: list[str]) -> int:
-    port = "8000"
+    # Loopback by default: this app is deliberately vulnerable, so it should not
+    # be reachable from the network unless you have said so on purpose. A PaaS
+    # sets $PORT and needs 0.0.0.0, which is what HOST is for - see DEPLOY.md.
+    port = os.getenv("PORT", "8000")
+    host = os.getenv("HOST", "127.0.0.1")
     if "--port" in argv:
         port = argv[argv.index("--port") + 1]
+    if "--host" in argv:
+        host = argv[argv.index("--host") + 1]
+
     import uvicorn
     from agent import db
     db.ensure()
+
+    shown = "127.0.0.1" if host in ("127.0.0.1", "0.0.0.0") else host
     print()
-    print(f"  Storefront     http://127.0.0.1:{port}/")
-    print(f"  Control room   http://127.0.0.1:{port}/console      <- put this on the second screen")
-    print(f"  Tutorials      http://127.0.0.1:{port}/tutorial")
+    print(f"  Storefront     http://{shown}:{port}/")
+    print(f"  Control room   http://{shown}:{port}/console      <- put this on the second screen")
+    print(f"  Tutorials      http://{shown}:{port}/tutorial")
     print()
-    print("  This app is deliberately vulnerable. Do not deploy it anywhere.")
+    if host == "127.0.0.1":
+        print("  This app is deliberately vulnerable. It is bound to this machine only.")
+    else:
+        gated = "gated by KESTREL_ACCESS_PASSWORD" if os.getenv("KESTREL_ACCESS_PASSWORD") \
+                else "NOT PASSWORD-GATED - anyone who finds the URL can drive the agent"
+        print(f"  WARNING: bound to {host} - reachable from the network, and {gated}.")
+        print("  This app is deliberately vulnerable. Read DEPLOY.md before exposing it.")
     print()
-    uvicorn.run("store.app:app", host="127.0.0.1", port=int(port), log_level="warning")
+    uvicorn.run("store.app:app", host=host, port=int(port), log_level="warning")
     return 0
 
 

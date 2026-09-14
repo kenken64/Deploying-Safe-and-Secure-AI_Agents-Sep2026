@@ -23,6 +23,7 @@ NUS-ISS · Institute of Systems Science, National University of Singapore
 | **[Day 2 - The interior](workshop-day2/)** | *Assume the edge already failed.* Contain the blast, detect the rest, keep a human on the irreversible. |
 | **[Teaching notes](docs/)** | Slide-by-slide understanding, facilitator playbook, security reference, workshop guide. |
 | **[Slides](slides/)** | The two decks the course is taught from. |
+| **[Deploying it](DEPLOY.md)** | Each day as its own Railway service — and what to set before a deliberately vulnerable agent gets a public URL. |
 
 Each day is a **self-contained, runnable lab** with its own README, its own attacks, its
 own step-by-step tutorials, and its own proof tests. Day 2 ships with Day 1's fixes
