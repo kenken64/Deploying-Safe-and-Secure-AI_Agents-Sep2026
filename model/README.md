@@ -10,19 +10,27 @@ with the model (`ollama show --license`).
 ## Why it exists
 
 The lab reaches Ollama over the OpenAI chat-completions API, and that API has no field
-for `num_ctx`. So the context window is whatever each student's Ollama happens to
-default to. When the poisoned help-centre article plus a turn's tool results overflow
-it, Ollama drops the front of the context silently - the indirect injection stops
-landing on one laptop and keeps landing on the next, with nothing in the console to
-explain the difference. A control that looks non-deterministic teaches the opposite of
-the lesson.
+for `num_ctx`. The context window is therefore whatever the host decided and the lab
+has no say in it. When the poisoned help-centre article plus a turn's tool results
+overflow it, Ollama drops the front of the context silently - the indirect injection
+stops landing on one laptop and keeps landing on the next, with nothing in the console
+to explain the difference. A control that looks non-deterministic teaches the opposite
+of the lesson.
 
-Pinning `num_ctx` is only possible inside the model. Everything else here is pinned for
-the same reason: one `ollama pull`, one behaviour, twenty laptops.
+To be straight about how big that risk is: **Ollama 0.34 defaults
+`OLLAMA_CONTEXT_LENGTH` to 32768**, so a current install needs no help. This pin is
+insurance against the hosts you do not control - an older Ollama, a machine where that
+variable was lowered, a shared server configured by someone else - and it caps KV cache
+at a size a student laptop can hold. 8192 is chosen to be comfortably enough for this
+lab, not to be large; on a modern default it is a reduction, deliberately.
+
+`num_ctx` cannot be set from the client at all, so the model is the only place it can
+live. Everything else here is pinned for the same reason: one `ollama pull`, one
+behaviour, twenty laptops.
 
 | Setting | Value | Why |
 |---|---|---|
-| `num_ctx` | 8192 | Fits Day 1 + Day 2 context and 12 steps of tool results. ~1GB of KV cache on top of the 4.7GB model. |
+| `num_ctx` | 8192 | Fits Day 1 + Day 2 context and 12 steps of tool results, and caps KV cache at ~1GB on top of the 4.7GB model. Insurance against hosts you do not control, not a fix for a broken default - see above. |
 | `temperature` | 0 | The lab sends this per request too; this covers `ollama run`. |
 | `top_p` | 1 | Same. |
 | `seed` | 42 | Reproducible sampling. |

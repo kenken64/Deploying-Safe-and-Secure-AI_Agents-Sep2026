@@ -2,15 +2,22 @@
 #
 # WHY THIS EXISTS
 # ---------------
-# The lab talks to Ollama over the OpenAI chat-completions API (agent/llm.py).
-# That API cannot send num_ctx. So the context window is whatever each student's
-# Ollama defaults to - and when the poisoned help-centre article plus the tool
-# results overflow it, the FRONT of the context is dropped silently. The indirect
-# injection then stops landing, on one laptop and not the next, for a reason no
-# student can see and no toggle explains.
+# The lab talks to Ollama over the OpenAI chat-completions API (agent/llm.py),
+# and that API cannot send num_ctx. So the context window is whatever the HOST
+# decided, and the lab has no say. When the poisoned help-centre article plus the
+# tool results overflow it, Ollama drops the FRONT of the context silently - the
+# indirect injection stops landing, on one laptop and not the next, for a reason
+# no student can see and no toggle explains.
 #
-# Baking the runtime settings into the model is the only place they can be set.
-# One `ollama pull`, and every laptop in the room behaves the same way.
+# Be accurate about the risk: Ollama 0.34 defaults OLLAMA_CONTEXT_LENGTH to
+# 32768, so a current install is fine out of the box. The pin is insurance
+# against the hosts you do not control - an older Ollama, a machine where
+# OLLAMA_CONTEXT_LENGTH was lowered, a shared server someone else configured -
+# and it caps KV cache at a size a student laptop can hold. 8192 is chosen to be
+# comfortably enough for this lab, not to be large.
+#
+# The model is the only place these can be set at all. One `ollama pull`, and
+# every laptop in the room behaves the same way.
 
 FROM llama3.1:8b
 
