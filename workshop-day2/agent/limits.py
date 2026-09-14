@@ -12,6 +12,7 @@ picks the level you didn't guard. So: five independent levels.
 """
 from __future__ import annotations
 
+import os
 import time
 from collections import Counter, deque
 
@@ -19,8 +20,10 @@ from config import settings
 from agent.models import LimitExceeded, Session, ToolCall
 from agent.telemetry import board
 
-#: rough blended price, only so the circuit breaker has something to trip on
-USD_PER_1K_TOKENS = 0.002
+#: Rough blended price, only so the circuit breaker has something to trip on.
+#: This is a SIMULATED cost - it is not read back from the provider. Set it to
+#: your real blended rate if you want the meter to mean something.
+USD_PER_1K_TOKENS = float(os.getenv("KESTREL_USD_PER_1K_TOKENS", "0.002"))
 
 _session_starts: deque[float] = deque(maxlen=500)
 _daily_tokens = {"n": 0, "day": time.strftime("%Y-%m-%d")}
@@ -117,6 +120,37 @@ def _trip(level: str, detail: str) -> None:
     board.record(session="-", principal="-", node="limits", verdict="capped",
                  severity="warn", control="SECURE_LIMITS", detail=f"{level}: {detail}")
     raise LimitExceeded(level, detail)
+
+
+def snapshot() -> dict:
+    """The budget meter, for the console and the tutorial pages.
+
+    The same four numbers the CLI prints after every attack, but reachable
+    without a session in hand: it reads the most recent one, because that is the
+    run the student just watched. The daily figure is cumulative across all of
+    them, which is the point of having it.
+
+    A meter that only appears once a cap has already fired teaches nothing. The
+    number climbing toward the ceiling is the demo.
+    """
+    from agent import graph
+    session = next(reversed(list(graph.SESSIONS.values())), None)
+    steps = session.steps if session else 0
+    tokens = session.tokens if session else 0
+    return {
+        "enabled": settings.on("SECURE_LIMITS"),
+        "rows": [
+            {"key": "steps",  "label": "steps this session",
+             "used": steps, "cap": settings.limit_steps_per_session, "fmt": "int"},
+            {"key": "tokens", "label": "tokens this session",
+             "used": tokens, "cap": settings.limit_tokens_per_session, "fmt": "int"},
+            {"key": "daily",  "label": "tokens today",
+             "used": _daily_tokens["n"], "cap": settings.limit_tokens_per_day, "fmt": "int"},
+            {"key": "cost",   "label": "spend this session",
+             "used": round(tokens / 1000 * USD_PER_1K_TOKENS, 4),
+             "cap": settings.limit_cost_ceiling_usd, "fmt": "usd"},
+        ],
+    }
 
 
 def status(session: Session) -> dict:

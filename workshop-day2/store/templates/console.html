@@ -50,6 +50,10 @@
     <div class="lights" id="lights"></div>
     <div id="breaches"></div>
 
+    <h2 style="margin-top:22px">Budget</h2>
+    <p class="sub">Block 10. Not a breach - a bill. Watch the bar reach the cap.</p>
+    <div id="budget"></div>
+
     <h2 style="margin-top:22px">Awaiting a human</h2>
     <p class="sub">Interrupt fires BEFORE the action, with the call frozen. You approve
       the thing you reviewed, not one that changed underneath you.</p>
@@ -105,6 +109,24 @@
 const chat=document.getElementById('chat'), box=document.getElementById('text');
 function add(cls,text){const d=document.createElement('div');d.className='msg '+cls;
   d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;}
+function budgetHTML(b){
+  if(!b) return '';
+  const fmt=(v,f)=> f==='usd' ? '$'+Number(v).toFixed(4) : Number(v).toLocaleString();
+  const rows = b.rows.map(r => {
+    const pct = r.cap ? Math.min(100, (r.used / r.cap) * 100) : 0;
+    const over = r.used > r.cap;
+    const cls = over ? 'over' : (pct >= 75 ? 'near' : '');
+    return `<div class="meter ${cls}">
+      <span class="ml">${r.label}</span>
+      <span class="mb"><i style="width:${pct}%"></i></span>
+      <span class="mv">${fmt(r.used,r.fmt)} / ${fmt(r.cap,r.fmt)}</span></div>`;
+  }).join('');
+  const note = b.enabled
+    ? '<div class="info">SECURE_LIMITS is ON - a cap that is reached stops the run.</div>'
+    : '<div class="warn">SECURE_LIMITS is OFF - these are the caps you WOULD have. '
+      + 'Nothing is enforcing them.</div>';
+  return rows + note;
+}
 function paint(b){
   document.getElementById('lights').innerHTML = b.lights.map(l =>
     `<div class="light ${l.level}"><span class="dot"></span>${l.label}
@@ -126,6 +148,7 @@ function paint(b){
   document.getElementById('persisted').innerHTML =
     '<div class="log" style="max-height:200px">' +
     (mem || '<div class="info">(no long-term memories)</div>') + thr + '</div>';
+  document.getElementById('budget').innerHTML = budgetHTML(b.budget);
   document.getElementById('log').innerHTML = b.events.map(e => {
     const bits = [e.node, e.tool && ('tool=' + e.tool), e.verdict !== 'ok' && ('verdict=' + e.verdict),
       e.records_touched ? ('rows=' + e.records_touched) : '', e.egress_host ? ('egress=' + e.egress_host) : '',

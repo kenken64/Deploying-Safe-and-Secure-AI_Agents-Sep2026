@@ -83,6 +83,52 @@ The database is SQLite inside the container, seeded at build time from
 
 ---
 
+## Demoing b8: making the cost ceiling actually fire
+
+Day 2's five limits are environment variables, so a live demo can be tuned from
+Railway without redeploying code. Day 1 has no limits - `SECURE_LIMITS` is a Day 2
+control.
+
+| Variable | Default | |
+|---|---|---|
+| `KESTREL_LIMIT_SESSIONS_PER_MIN` | `5` | level 1 - request rate |
+| `KESTREL_LIMIT_STEPS_PER_SESSION` | `6` | level 2 - session execution |
+| `KESTREL_LIMIT_REPEAT_CYCLE` | `3` | level 3 - loop detection |
+| `KESTREL_LIMIT_TOKENS_PER_SESSION` | `3000` | level 4 - token budget |
+| `KESTREL_LIMIT_TOKENS_PER_DAY` | `30000` | level 4 - daily budget |
+| `KESTREL_LIMIT_COST_CEILING_USD` | `0.25` | level 5 - the circuit breaker |
+| `KESTREL_USD_PER_1K_TOKENS` | `0.002` | the simulated price the meter uses |
+
+**The levels are checked in order** - steps, loop, tokens, then cost - so to show a
+particular cap firing, every level above it must be loose enough for the run to
+reach it. On the shipped defaults the cost ceiling is **unreachable**: $0.25 needs
+125,000 tokens and the session cap stops at 3,000.
+
+To make level 5 the one that stops `b8`:
+
+```
+KESTREL_LIMIT_STEPS_PER_SESSION=20
+KESTREL_LIMIT_REPEAT_CYCLE=20
+KESTREL_LIMIT_TOKENS_PER_SESSION=100000
+KESTREL_LIMIT_TOKENS_PER_DAY=100000
+KESTREL_LIMIT_COST_CEILING_USD=0.01      # b8 reaches ~$0.0245 on OpenRouter
+```
+
+Switch `SECURE_LIMITS` on and run `b8`. The Budget panel in the control room - and
+the same meter under the lights on the tutorial page - shows the spend bar go red
+and the trace names the level: `5 cost ceiling: $0.0245 this session, ceiling is
+$0.01`.
+
+With the mock, `b8` only burns ~320 tokens, so use `KESTREL_LIMIT_COST_CEILING_USD=0.0005`
+for an offline demo.
+
+> **This cost is simulated** - tokens multiplied by `KESTREL_USD_PER_1K_TOKENS`, not
+> read back from OpenRouter. Do not demo by draining a real key: when OpenRouter
+> refuses, the adapter raises `RuntimeError` and you get a 500, not a lesson. Keep a
+> credit limit on the key as the safety net, and demo the drain with this meter.
+
+---
+
 ## Anywhere else
 
 Nothing here is Railway-specific. Any platform that runs a Dockerfile works:

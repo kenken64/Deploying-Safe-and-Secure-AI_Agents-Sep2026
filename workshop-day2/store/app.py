@@ -63,6 +63,7 @@ def board_state() -> dict:
         "memories": [{"kind": m["kind"], "text": m["text"][:110],
                       "approved": bool(m["approved"])} for m in memory.memories()[:8]],
         "threads": [{"id": t, "snapshots": len(v)} for t, v in memory.CHECKPOINTS.items()],
+        "budget": limits.snapshot(),
     }
 
 

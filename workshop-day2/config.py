@@ -70,12 +70,19 @@ class Settings:
     max_steps: int = int(os.getenv("KESTREL_MAX_STEPS", "12"))
 
     # Block 10 - five independent levels. One cap is a cap on one thing only.
-    limit_sessions_per_min: int = 5
-    limit_steps_per_session: int = 6
-    limit_repeat_cycle: int = 3
-    limit_tokens_per_session: int = 3_000
-    limit_tokens_per_day: int = 30_000
-    limit_cost_ceiling_usd: float = 0.25
+    #
+    # Environment-driven so a hosted demo can be tuned without a redeploy. Note
+    # that the levels are checked IN ORDER (steps, loop, tokens, cost), so to
+    # demonstrate a particular cap firing, every level above it has to be loose
+    # enough to let the run reach it. As shipped the cost ceiling is unreachable
+    # on purpose-built numbers: $0.25 needs 125,000 tokens and the session cap
+    # stops at 3,000. See DEPLOY.md for the demo values.
+    limit_sessions_per_min: int = int(os.getenv("KESTREL_LIMIT_SESSIONS_PER_MIN", "5"))
+    limit_steps_per_session: int = int(os.getenv("KESTREL_LIMIT_STEPS_PER_SESSION", "6"))
+    limit_repeat_cycle: int = int(os.getenv("KESTREL_LIMIT_REPEAT_CYCLE", "3"))
+    limit_tokens_per_session: int = int(os.getenv("KESTREL_LIMIT_TOKENS_PER_SESSION", "3000"))
+    limit_tokens_per_day: int = int(os.getenv("KESTREL_LIMIT_TOKENS_PER_DAY", "30000"))
+    limit_cost_ceiling_usd: float = float(os.getenv("KESTREL_LIMIT_COST_CEILING_USD", "0.25"))
 
     # Block 9 - the three-factor test, in a number. Small refund autonomous;
     # large refund interrupted.

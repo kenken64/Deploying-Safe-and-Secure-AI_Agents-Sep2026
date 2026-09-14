@@ -97,6 +97,24 @@
 </div>
 {% endblock %}
 {% block script %}<script>
+function budgetHTML(b){
+  if(!b) return '';
+  const fmt=(v,f)=> f==='usd' ? '$'+Number(v).toFixed(4) : Number(v).toLocaleString();
+  const rows = b.rows.map(r => {
+    const pct = r.cap ? Math.min(100, (r.used / r.cap) * 100) : 0;
+    const over = r.used > r.cap;
+    const cls = over ? 'over' : (pct >= 75 ? 'near' : '');
+    return `<div class="meter ${cls}">
+      <span class="ml">${r.label}</span>
+      <span class="mb"><i style="width:${pct}%"></i></span>
+      <span class="mv">${fmt(r.used,r.fmt)} / ${fmt(r.cap,r.fmt)}</span></div>`;
+  }).join('');
+  const note = b.enabled
+    ? '<div class="info">SECURE_LIMITS is ON - a cap that is reached stops the run.</div>'
+    : '<div class="warn">SECURE_LIMITS is OFF - these are the caps you WOULD have. '
+      + 'Nothing is enforcing them.</div>';
+  return rows + note;
+}
 function labPaint(d){
   const lights = (d.board.lights||[]).map(l =>
     `<div class="light ${l.level}"><span class="dot"></span>${l.label}
@@ -108,6 +126,7 @@ function labPaint(d){
     `<div class="verdict ${d.landed?'bad':'good'}">${d.landed
         ? 'ATTACK LANDED - it is not fixed yet' : 'ATTACK STOPPED - that is the proof'}</div>
      <div class="lights">${lights}</div>
+     <div class="budget">${budgetHTML(d.board.budget)}</div>
      <div class="log">${trace||'<div class="info">(no trace)</div>'}</div>`;
   document.getElementById('labout').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
