@@ -104,28 +104,54 @@ particular cap firing, every level above it must be loose enough for the run to
 reach it. On the shipped defaults the cost ceiling is **unreachable**: $0.25 needs
 125,000 tokens and the session cap stops at 3,000.
 
-To make level 5 the one that stops `b8`:
+Whichever cap fires first leaves the others below their caps - so you cannot have
+every bar full. That is not a tuning problem, it is the block's thesis: five
+independent levels, and the attack picks the one you did not guard.
+
+### A. Token budget - RECOMMENDED
 
 ```
 KESTREL_LIMIT_STEPS_PER_SESSION=20
 KESTREL_LIMIT_REPEAT_CYCLE=20
-KESTREL_LIMIT_TOKENS_PER_SESSION=100000
-KESTREL_LIMIT_TOKENS_PER_DAY=100000
-KESTREL_LIMIT_COST_CEILING_USD=0.01      # b8 reaches ~$0.0245 on OpenRouter
+KESTREL_LIMIT_TOKENS_PER_SESSION=2500
+KESTREL_LIMIT_TOKENS_PER_DAY=4000
+KESTREL_LIMIT_COST_CEILING_USD=0.25       # left unreachable on purpose
 ```
 
-Switch `SECURE_LIMITS` on and run `b8`. The Budget panel in the control room - and
-the same meter under the lights on the tutorial page - shows the spend bar go red
-and the trace names the level: `5 cost ceiling: $0.0245 this session, ceiling is
-$0.01`.
+`b8` on OpenRouter reaches ~3,000 tokens, so the token bar fills past 100% and goes
+red, and the trace names the level: `4 token budget: 3032 tokens this session, cap
+is 2500`. Measured 2 runs out of 2, identical both times.
 
-With the mock, `b8` only burns ~320 tokens, so use `KESTREL_LIMIT_COST_CEILING_USD=0.0005`
-for an offline demo.
+Preferred because tokens are the honest unit. The dollar figure is simulated at
+`$0.002` per 1K, which is about **31x** the real price of llama-3.1-8b
+(`$0.000065` per 1K) - a demo built on it puts a fabricated number in front of the
+room. Burning tokens IS the economic exhaustion.
 
-> **This cost is simulated** - tokens multiplied by `KESTREL_USD_PER_1K_TOKENS`, not
+### B. Cost ceiling
+
+```
+KESTREL_LIMIT_TOKENS_PER_SESSION=100000
+KESTREL_LIMIT_TOKENS_PER_DAY=100000
+KESTREL_LIMIT_COST_CEILING_USD=0.005      # NOT 0.01 - see below
+```
+
+Gives `5 cost ceiling`, but with two caveats. The token bars sit near zero, because
+they have to be loose enough for the run to reach level 5 at all. And `check_step`
+runs at the START of a step, so a run that ends before the next check can finish
+OVER the cap without ever tripping - at `0.01` that happened on 1 run in 2
+(`cost=$0.0101/$0.01`, light still green). `0.005` is crossed early enough that a
+later check catches it: 2 out of 2.
+
+With the mock, `b8` burns only ~320 tokens and ~$0.0006, so scale to
+`KESTREL_LIMIT_TOKENS_PER_SESSION=300` or `KESTREL_LIMIT_COST_CEILING_USD=0.0005`.
+
+Running both, one after the other, is the strongest version of the block: the same
+attack, caught by a different level each time.
+
+> **The cost is simulated** - tokens multiplied by `KESTREL_USD_PER_1K_TOKENS`, never
 > read back from OpenRouter. Do not demo by draining a real key: when OpenRouter
-> refuses, the adapter raises `RuntimeError` and you get a 500, not a lesson. Keep a
-> credit limit on the key as the safety net, and demo the drain with this meter.
+> refuses the adapter raises `RuntimeError` and you get a 500, not a lesson. Keep a
+> credit limit on the key as the safety net and demo the drain with this meter.
 
 ---
 
