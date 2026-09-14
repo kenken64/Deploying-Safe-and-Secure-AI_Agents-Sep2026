@@ -86,6 +86,8 @@ The docs are numbered but **not meant to be read 00→06 in sequence.** Pick you
 | [`workshop-day1/README.md`](workshop-day1/README.md) | Day 1 lab: setup, attacks, controls | At a laptop |
 | [`workshop-day2/README.md`](workshop-day2/README.md) | Day 2 lab: same, for the interior | At a laptop |
 | `workshop-day*/tutorials/*.md` | One per vulnerability: see it, then fix it | What participants work through |
+| [`ANSWER-KEY-DAY1.md`](ANSWER-KEY-DAY1.md) | `a1`-`a7`: the flaw, the fix, the line number | Marking, and after the room has fought it |
+| [`ANSWER-KEY-DAY2.md`](ANSWER-KEY-DAY2.md) | `b1`-`b8`: the same, for the interior | Marking Day 2 |
 
 Two conventions worth knowing before you read any of it: slide references are **PDF page
 numbers** (`D1 p32`), and **`▸ Added`** marks material written for these notes rather than
