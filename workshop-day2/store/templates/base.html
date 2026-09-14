@@ -7,74 +7,102 @@
   --bg:#0f1216; --panel:#161b22; --edge:#252c36; --ink:#e6edf3; --dim:#8b949e;
   --accent:#e0a458; --green:#2ea043; --amber:#d29922; --red:#da3633; --link:#58a6ff;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  /* Every font size below is rem, so this one value scales the whole UI.
+     17px rather than 15: this gets taught from a projector at the back of
+     a room. The A-/A+ control in the header moves it live. */
+  --fs:17px;
 }
+html{font-size:var(--fs)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
-  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  font:1.0rem/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 a{color:var(--link);text-decoration:none} a:hover{text-decoration:underline}
 header{display:flex;align-items:center;gap:22px;padding:12px 20px;
   border-bottom:1px solid var(--edge);background:var(--panel);flex-wrap:wrap}
 header .brand{font-weight:700;letter-spacing:.3px}
 header .brand span{color:var(--accent)}
-header nav{display:flex;gap:16px;font-size:14px}
+header nav{display:flex;gap:16px;font-size:0.933rem}
 header .spacer{flex:1}
-.badge{font:12px/1 var(--mono);padding:5px 9px;border-radius:999px;
+.badge{font:0.8rem/1 var(--mono);padding:5px 9px;border-radius:999px;
   border:1px solid var(--edge);color:var(--dim);white-space:nowrap}
+.fs{display:flex;align-items:center;gap:0;border:1px solid var(--edge);border-radius:999px;
+  overflow:hidden}
+.fs button{background:transparent;border:0;border-radius:0;color:var(--dim);
+  padding:4px 10px;font:0.8rem/1 var(--mono);cursor:pointer}
+.fs button:hover{color:var(--ink);background:#21262d}
+.fs button+button{border-left:1px solid var(--edge)}
 .badge.warn{border-color:var(--amber);color:var(--amber)}
 .badge.mock{border-color:#8957e5;color:#c297ff;background:rgba(137,87,229,.12)}
 .badge.live{border-color:var(--green);color:#7ee787;background:rgba(46,160,67,.12)}
-.msg.why{align-self:flex-start;font:11.5px var(--mono);color:#c297ff;
+.msg.why{align-self:flex-start;font:0.767rem var(--mono);color:#c297ff;
   background:rgba(137,87,229,.10);border:1px dashed #8957e5;max-width:92%}
-.wrap{max-width:1280px;margin:0 auto;padding:22px 20px 60px}
+.wrap{max-width:min(1720px,95vw);margin:0 auto;padding:22px 20px 60px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-@media(max-width:940px){.grid{grid-template-columns:1fr}}
+/* the tutorial sidebar was an inline style, which no media query could
+   override - so it stayed 280px wide on a phone and squeezed the page */
+.grid.tut{grid-template-columns:280px 1fr}
+@media(max-width:1100px){.grid{grid-template-columns:1fr}}
+@media(max-width:820px){.grid.tut{grid-template-columns:1fr}}
+/* A grid item defaults to min-width:auto, so it refuses to shrink below its
+   content and pushes the page sideways. These three lines are what stop the
+   console overflowing on a narrow screen. */
+.grid>*{min-width:0}
+@media(max-width:560px){
+  /* SECURE_NO_CREDS_IN_STATE is one unbreakable monospace token, so min-width:0
+     alone does nothing - the content IS the width. Let the row wrap and the
+     token break. */
+  .ctl{flex-wrap:wrap}
+  .ctl .k{min-width:0;overflow-wrap:anywhere}
+  .ctl .blk{margin-left:0}
+  .lab .step .meta{min-width:0}
+}
 .panel{background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:16px}
-.panel h2{margin:0 0 4px;font-size:15px;letter-spacing:.4px;text-transform:uppercase;color:var(--dim)}
-.panel .sub{margin:0 0 14px;font-size:13px;color:var(--dim)}
+.panel h2{margin:0 0 4px;font-size:1.0rem;letter-spacing:.4px;text-transform:uppercase;color:var(--dim)}
+.panel .sub{margin:0 0 14px;font-size:0.867rem;color:var(--dim)}
 button{font:inherit;background:#21262d;color:var(--ink);border:1px solid var(--edge);
   border-radius:7px;padding:8px 13px;cursor:pointer}
 button:hover{border-color:var(--accent)}
 button.primary{background:var(--accent);color:#1b1205;border-color:var(--accent);font-weight:600}
 input,select,textarea{font:inherit;background:#0d1117;color:var(--ink);
   border:1px solid var(--edge);border-radius:7px;padding:9px 11px;width:100%}
-table{width:100%;border-collapse:collapse;font-size:13.5px}
+table{width:100%;border-collapse:collapse;font-size:0.9rem}
 th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--edge);vertical-align:top}
-th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
-code{font:13px var(--mono);background:#0d1117;border:1px solid var(--edge);
+th{color:var(--dim);font-weight:600;font-size:0.8rem;text-transform:uppercase;letter-spacing:.4px}
+code{font:0.867rem var(--mono);background:#0d1117;border:1px solid var(--edge);
   border-radius:4px;padding:1px 5px}
 pre{background:#0d1117;border:1px solid var(--edge);border-radius:8px;
   padding:13px;overflow:auto} pre code{border:0;background:none;padding:0;line-height:1.5}
 blockquote{border-left:3px solid var(--accent);margin:14px 0;padding:2px 0 2px 14px;color:var(--dim)}
 .lights{display:grid;gap:7px;margin-bottom:14px}
 .light{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:7px;
-  border:1px solid var(--edge);background:#0d1117;font:13px var(--mono)}
+  border:1px solid var(--edge);background:#0d1117;font:0.867rem var(--mono)}
 .dot{width:11px;height:11px;border-radius:50%;flex:none}
 .green .dot{background:var(--green)} .amber .dot{background:var(--amber)}
 .red .dot{background:var(--red);box-shadow:0 0 0 4px rgba(218,54,51,.22)}
 .red{border-color:var(--red);color:#ffb4b0} .amber{border-color:var(--amber);color:#f0c674}
-.light .level{margin-left:auto;font-size:11px;letter-spacing:.6px}
-.log{font:12px/1.6 var(--mono);background:#0d1117;border:1px solid var(--edge);
+.light .level{margin-left:auto;font-size:0.733rem;letter-spacing:.6px}
+.log{font:0.8rem/1.6 var(--mono);background:#0d1117;border:1px solid var(--edge);
   border-radius:8px;padding:11px;max-height:330px;overflow:auto}
 .log div{white-space:pre-wrap;padding:1px 0}
 .log .alert{color:#ff7b72} .log .warn{color:#f0c674} .log .info{color:var(--dim)}
 .chat{height:330px;overflow:auto;display:flex;flex-direction:column;gap:9px;padding:4px}
-.msg{max-width:82%;padding:9px 12px;border-radius:12px;font-size:14px;white-space:pre-wrap}
+.msg{max-width:82%;padding:9px 12px;border-radius:12px;font-size:0.933rem;white-space:pre-wrap}
 .msg.user{align-self:flex-end;background:#1f6feb;color:#fff;border-bottom-right-radius:3px}
 .msg.agent{align-self:flex-start;background:#21262d;border:1px solid var(--edge);border-bottom-left-radius:3px}
-.msg.sys{align-self:center;font:11.5px var(--mono);color:var(--dim);background:none;border:0}
+.msg.sys{align-self:center;font:0.767rem var(--mono);color:var(--dim);background:none;border:0}
 .row{display:flex;gap:9px;align-items:center}
 .controls{display:grid;gap:7px}
 .ctl{display:flex;gap:10px;align-items:center;padding:8px 11px;border:1px solid var(--edge);
-  border-radius:7px;background:#0d1117;font-size:13px}
-.ctl .k{font:12px var(--mono);color:var(--dim);min-width:210px}
+  border-radius:7px;background:#0d1117;font-size:0.867rem}
+.ctl .k{font:0.8rem var(--mono);color:var(--dim);min-width:210px}
 .ctl.on{border-color:var(--green)} .ctl.on .k{color:var(--green)}
-.ctl .blk{margin-left:auto;font-size:11px;color:var(--dim)}
-.pill{display:inline-block;font:11px var(--mono);padding:2px 7px;border-radius:999px;
+.ctl .blk{margin-left:auto;font-size:0.733rem;color:var(--dim)}
+.pill{display:inline-block;font:0.733rem var(--mono);padding:2px 7px;border-radius:999px;
   border:1px solid var(--edge);color:var(--dim);margin-right:5px}
 .approve{display:flex;gap:9px;align-items:center;padding:10px;border:1px solid var(--amber);
-  border-radius:8px;background:rgba(210,153,34,.08);margin-bottom:8px;font-size:13px}
+  border-radius:8px;background:rgba(210,153,34,.08);margin-bottom:8px;font-size:0.867rem}
 .approve .meta{flex:1}
-.theme{font:10px var(--mono);letter-spacing:.8px;padding:2px 6px;border-radius:4px;
+.theme{font:0.667rem var(--mono);letter-spacing:.8px;padding:2px 6px;border-radius:4px;
   border:1px solid var(--edge);color:var(--dim)}
 .theme.CONTAIN{border-color:#8957e5;color:#c297ff}
 .theme.DETECT{border-color:#1f6feb;color:#79c0ff}
@@ -82,23 +110,23 @@ blockquote{border-left:3px solid var(--accent);margin:14px 0;padding:2px 0 2px 1
 .ctl.locked{opacity:.62;border-style:dashed}
 .attack{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--edge);
   border-radius:8px;background:#0d1117;margin-bottom:8px}
-.attack .meta{flex:1;font-size:13px} .attack .meta b{display:block;margin-bottom:2px}
-.attack .meta span{color:var(--dim);font-size:12px}
+.attack .meta{flex:1;font-size:0.867rem} .attack .meta b{display:block;margin-bottom:2px}
+.attack .meta span{color:var(--dim);font-size:0.8rem}
 .lab .step{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:8px;
   border:1px solid var(--edge);background:#0d1117;margin-bottom:9px;flex-wrap:wrap}
 .lab .step .n{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#1b1205;
-  font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px}
-.lab .step .meta{flex:1;min-width:240px;font-size:13.5px}
-.lab .step .meta span{color:var(--dim);font-size:12.5px}
+  font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;font-size:0.867rem}
+.lab .step .meta{flex:1;min-width:240px;font-size:0.9rem}
+.lab .step .meta span{color:var(--dim);font-size:0.833rem}
 .flowbox{flex-basis:100%;margin-top:11px;border:1px solid var(--edge);border-radius:8px;
   background:#0b0f14;overflow:hidden}
-.flowhead{padding:8px 11px;border-bottom:1px solid var(--edge);font:12px var(--mono);
+.flowhead{padding:8px 11px;border-bottom:1px solid var(--edge);font:0.8rem var(--mono);
   color:var(--accent)}
-.flowhead span{display:block;color:var(--dim);font-size:11.5px;margin-top:3px}
+.flowhead span{display:block;color:var(--dim);font-size:0.767rem;margin-top:3px}
 .flowscroll{overflow-x:auto}
 .flow{display:block}
 .flowkey{flex-basis:100%;display:flex;gap:16px;flex-wrap:wrap;margin-top:9px;
-  font-size:11.5px;color:var(--dim)}
+  font-size:0.767rem;color:var(--dim)}
 .flowkey i{display:inline-block;width:18px;height:0;vertical-align:middle;margin-right:6px;
   border-top-width:2px;border-top-style:solid}
 .flowkey i.k-normal{border-top-color:#8b949e}
@@ -106,30 +134,30 @@ blockquote{border-left:3px solid var(--accent);margin:14px 0;padding:2px 0 2px 1
 .flowkey i.k-breach{border-top-color:var(--red);border-top-style:dashed}
 .answerkey{margin-top:14px;border:1px solid var(--edge);border-radius:8px;
   background:#0d1117;overflow:hidden}
-.answerkey>summary{cursor:pointer;padding:11px 13px;font:12.5px var(--mono);
+.answerkey>summary{cursor:pointer;padding:11px 13px;font:0.833rem var(--mono);
   color:var(--accent);list-style:none;user-select:none}
 .answerkey>summary::-webkit-details-marker{display:none}
 .answerkey>summary::before{content:"\25b8 ";display:inline-block;width:14px}
 .answerkey[open]>summary::before{content:"\25be "}
 .answerkey[open]>summary{border-bottom:1px solid var(--edge)}
-.akbody{padding:2px 15px 13px;font-size:13.5px}
-.akbody table{margin:10px 0;font-size:12.5px}
+.akbody{padding:2px 15px 13px;font-size:0.9rem}
+.akbody table{margin:10px 0;font-size:0.833rem}
 .akbody td{vertical-align:top}
 .akbody blockquote{margin:10px 0;padding:8px 12px;border-left:2px solid var(--amber);
-  background:rgba(210,153,34,.07);color:var(--dim);font-size:12.5px}
-.meter{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12.5px}
+  background:rgba(210,153,34,.07);color:var(--dim);font-size:0.833rem}
+.meter{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:0.833rem}
 .meter .ml{flex:0 0 150px;color:var(--dim)}
 .meter .mb{flex:1;height:7px;border-radius:999px;background:#0d1117;
   border:1px solid var(--edge);overflow:hidden}
 .meter .mb i{display:block;height:100%;background:var(--green);transition:width .4s}
-.meter .mv{flex:0 0 132px;text-align:right;font:12px var(--mono);color:var(--ink)}
+.meter .mv{flex:0 0 132px;text-align:right;font:0.8rem var(--mono);color:var(--ink)}
 .meter.near .mb i{background:var(--amber)}
 .meter.over .mb i{background:var(--red)}
 .meter.over .mv{color:#ff7b72;font-weight:600}
 .budget{margin:10px 0}
 .srcwrap{overflow:auto;max-height:70vh;border:1px solid var(--edge);border-radius:8px;
   background:#0d1117}
-table.src{border-collapse:collapse;width:100%;font:12.5px/1.55 var(--mono)}
+table.src{border-collapse:collapse;width:100%;font:0.833rem/1.55 var(--mono)}
 table.src td{border:0;padding:0 10px;vertical-align:top;white-space:pre}
 table.src .ln{text-align:right;color:#4a5568;user-select:none;width:1%;
   border-right:1px solid var(--edge);background:#0b0f14;position:sticky;left:0}
@@ -139,14 +167,25 @@ table.src .k{color:#ff7b72}
 table.src .s{color:#a5d6ff}
 table.src .c{color:#8b949e;font-style:italic}
 table.src .n{color:#79c0ff}
-.verdict{padding:10px 13px;border-radius:8px;margin:14px 0 10px;font-weight:600;font-size:14px}
+/* Long code lines and wide markdown tables were pushing the whole page
+   sideways on a narrow screen. Give each its own scroller instead - the source
+   viewer has one already, so leave table.src alone. */
+pre{overflow-x:auto;max-width:100%}
+.panel table:not(.src){display:block;overflow-x:auto;max-width:100%;width:max-content}
+.panel table:not(.src) td,.panel table:not(.src) th{white-space:normal}
+/* An inline <code> holding one long token - SECURE_NO_CREDS_IN_STATE, a file
+   path - has no break opportunity and pushes the page sideways. Let inline code
+   break; block code keeps its scroller instead. */
+code{overflow-wrap:anywhere}
+pre code{overflow-wrap:normal}
+.verdict{padding:10px 13px;border-radius:8px;margin:14px 0 10px;font-weight:600;font-size:0.933rem}
 .verdict.bad{background:rgba(218,54,51,.14);border:1px solid var(--red);color:#ffb4b0}
 .verdict.good{background:rgba(46,160,67,.14);border:1px solid var(--green);color:#7ee787}
-.toc{list-style:none;margin:0;padding:0;font-size:13.5px}
+.toc{list-style:none;margin:0;padding:0;font-size:0.9rem}
 .toc li{padding:5px 0;border-bottom:1px solid var(--edge)}
-h1{font-size:23px;margin:0 0 6px} h2{font-size:18px;margin:26px 0 8px}
-h3{font-size:15px;margin:20px 0 6px;color:var(--accent)}
-.note{font-size:13px;color:var(--dim);margin-top:10px}
+h1{font-size:1.533rem;margin:0 0 6px} h2{font-size:1.2rem;margin:26px 0 8px}
+h3{font-size:1.0rem;margin:20px 0 6px;color:var(--accent)}
+.note{font-size:0.867rem;color:var(--dim);margin-top:10px}
 </style></head><body>
 <header>
   <div class="brand">KESTREL<span>GOAT</span></div>
@@ -154,11 +193,37 @@ h3{font-size:15px;margin:20px 0 6px;color:var(--accent)}
     <a href="/">Storefront</a><a href="/console">Control room</a><a href="/tutorial">Tutorials</a>
   </nav>
   <div class="spacer"></div>
+  <div class="fs" title="Text size - for the back of the room">
+    <button onclick="fs(-1)" aria-label="Smaller text">A&minus;</button>
+    <button onclick="fs(0)" aria-label="Reset text size">A</button>
+    <button onclick="fs(1)" aria-label="Larger text">A+</button>
+  </div>
   <div class="badge warn">DAY 2 &middot; THE INTERIOR</div>
   {% if badge %}<div class="badge {{ 'mock' if badge.kind=='mock' else 'live' }}"
        title="{{ badge.hint }}">{{ badge.text }}</div>{% endif %}
   <div class="badge">deliberately vulnerable &middot; never deploy</div>
 </header>
 <div class="wrap">{% block body %}{% endblock %}</div>
+<script>
+// Text size, remembered per browser. Everything in the stylesheet is rem, so
+// this one variable scales the whole UI - handy when the projector is worse
+// than the laptop screen.
+(function(){
+  const KEY = 'kestrel-fs', DEF = 17, MIN = 13, MAX = 30;
+  function set(px){
+    px = Math.min(MAX, Math.max(MIN, px));
+    document.documentElement.style.setProperty('--fs', px + 'px');
+    try { localStorage.setItem(KEY, px); } catch (e) {}
+  }
+  window.fs = function(dir){
+    const now = parseFloat(getComputedStyle(document.documentElement).fontSize) || DEF;
+    set(dir === 0 ? DEF : now + dir * 1.5);
+  };
+  try {
+    const saved = parseFloat(localStorage.getItem(KEY));
+    if (saved) set(saved);
+  } catch (e) {}
+})();
+</script>
 {% block script %}{% endblock %}
 </body></html>
