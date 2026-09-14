@@ -38,6 +38,8 @@ LANE_W = 152
 TOP = 54
 ROW_H = 46
 PAD_X = 14
+LABEL_PX = 11             # font-size of a hop label
+CHAR_W = LABEL_PX * 0.62  # monospace, so width is just a character count
 
 
 def render(flow: list[tuple[str, str, str, str]], caption: str = "") -> str:
@@ -46,8 +48,35 @@ def render(flow: list[tuple[str, str, str, str]], caption: str = "") -> str:
         return ""
 
     used = [k for k in ACTORS if any(k in (f, t) for f, t, _, _ in flow)]
-    x = {key: PAD_X + LANE_W // 2 + i * LANE_W for i, key in enumerate(used)}
-    width = PAD_X * 2 + LANE_W * len(used)
+
+    def lane(i: int) -> float:
+        return PAD_X + LANE_W / 2 + i * LANE_W
+
+    def label_span(i: int, hop) -> tuple[float, float]:
+        """Where hop i's label starts and ends, so none of it is drawn off-canvas.
+
+        A self-hop's label sits beside its lifeline, and a long one - "the session
+        ends; the memory does not" - runs well past the last lane. Measuring it is
+        what keeps it on the diagram.
+        """
+        src, dst, text, _ = hop
+        w = len(f"{i + 1}. {text}") * CHAR_W
+        si, di = used.index(src), used.index(dst)
+        if src == dst:
+            out_dir = -1 if si == len(used) - 1 else 1
+            tx = lane(si) + 54 * out_dir
+            return (tx, tx + w) if out_dir == 1 else (tx - w, tx)
+        mid = (lane(si) + lane(di)) / 2
+        return mid - w / 2, mid + w / 2
+
+    spans = [label_span(i, hop) for i, hop in enumerate(flow)]
+    base_w = PAD_X * 2 + LANE_W * len(used)
+    # Grow the canvas to hold whichever label sticks out furthest, on either side.
+    shift = max(0.0, max(-lo for lo, _ in spans) + PAD_X)
+    right = max(0.0, max(hi for _, hi in spans) - base_w + PAD_X)
+
+    x = {key: shift + lane(i) for i, key in enumerate(used)}
+    width = round(shift + base_w + right)
     height = TOP + ROW_H * len(flow) + 26
 
     out = [
@@ -69,7 +98,7 @@ def render(flow: list[tuple[str, str, str, str]], caption: str = "") -> str:
     for key in used:
         cx = x[key]
         out.append(
-            f'<rect x="{cx - LANE_W // 2 + 8}" y="10" width="{LANE_W - 16}" height="30" '
+            f'<rect x="{cx - LANE_W / 2 + 8}" y="10" width="{LANE_W - 16}" height="30" '
             f'rx="7" fill="#0d1117" stroke="#252c36"/>')
         out.append(
             f'<text x="{cx}" y="29" text-anchor="middle" font-size="11.5" '
