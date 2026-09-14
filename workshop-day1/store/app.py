@@ -22,6 +22,7 @@ from agent import db, graph, llm
 from agent.models import Principal
 from agent.telemetry import LIGHTS, board
 from attacks.catalogue import ATTACKS, ORDER, TUTORIAL_LABS
+from store import flow as flowsvg
 from attacks.run import run_one
 
 HERE = Path(__file__).resolve().parent
@@ -138,7 +139,10 @@ def lab_for(slug: str) -> dict | None:
         controls = [k for k in override["controls"] if k in CONTROLS]
         return {
             "attacks": [{"id": a.id, "name": a.name, "message": a.message,
-                         "note": a.note} for a in related],
+                         "note": a.note, "entry_point": a.entry_point,
+                         "stage": a.stage, "impact": a.impact,
+                         "flow": flowsvg.render(a.flow, f"{a.id}: {a.name}")}
+                        for a in related],
             "controls": [{"key": k, "on": settings.on(k), **CONTROLS[k]} for k in controls],
         }
 
@@ -152,7 +156,10 @@ def lab_for(slug: str) -> dict | None:
                 controls.append(key)
     return {
         "attacks": [{"id": a.id, "name": a.name, "message": a.message,
-                     "note": a.note} for a in related],
+                     "note": a.note, "entry_point": a.entry_point,
+                     "stage": a.stage, "impact": a.impact,
+                     "flow": flowsvg.render(a.flow, f"{a.id}: {a.name}")}
+                    for a in related],
         "controls": [{"key": k, "on": settings.on(k), **CONTROLS[k]} for k in controls],
     }
 

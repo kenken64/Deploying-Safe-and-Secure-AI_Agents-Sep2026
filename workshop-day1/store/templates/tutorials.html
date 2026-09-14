@@ -27,7 +27,22 @@
 
     <div class="step"><span class="n">2</span>
       <div class="meta"><b>Read what happened, and why</b>
-        <br><span>The walkthrough below goes to the exact line that allowed it.</span></div>
+        <br><span>Follow the arrows down: who handed what to whom, and the hop
+        where the trust boundary broke. The walkthrough below goes to the exact
+        line that allowed it.</span></div>
+      {% for a in lab.attacks %}
+      <div class="flowbox">
+        <div class="flowhead">{{ a.id|upper }}
+          <span>{{ a.entry_point }} &rarr; {{ a.stage }} &rarr; {{ a.impact }}</span>
+        </div>
+        <div class="flowscroll">{{ a.flow|safe }}</div>
+      </div>
+      {% endfor %}
+      <div class="flowkey">
+        <span><i class="k-normal"></i>ordinary traffic</span>
+        <span><i class="k-payload"></i>the attacker's text, moving</span>
+        <span><i class="k-breach"></i>the boundary crossed</span>
+      </div>
     </div>
 
     <div class="step"><span class="n">3</span>
