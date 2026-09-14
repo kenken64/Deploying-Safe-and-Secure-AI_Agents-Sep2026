@@ -338,6 +338,9 @@ def _markdown(text: str) -> str:
         if in_table:
             out.append("</table>")
             in_table = False
+        if re.match(r"^\s*(?:-{3,}|\*{3,}|_{3,})\s*$", raw):
+            out.append("<hr>")
+            continue
         if m := re.match(r"^(#{1,4})\s+(.*)$", raw):
             level, text = len(m.group(1)), m.group(2)
             out.append(f'<h{level} id="{_slug(text)}">{_inline(_esc(text))}</h{level}>')
@@ -376,5 +379,7 @@ def _esc(s: str) -> str:
 def _inline(s: str) -> str:
     s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
     s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
+    # singles only - the bold pass above has already consumed every **
+    s = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", s)
     s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', s)
     return s
