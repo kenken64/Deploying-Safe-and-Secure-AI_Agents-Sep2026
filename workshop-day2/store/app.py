@@ -126,6 +126,36 @@ def tutorial_index(request: Request):
         "items": items, "body": None, "title": "Tutorials", "badge": model_badge()})
 
 
+ANSWER_KEY = ROOT / "ANSWER-KEY.md"
+
+
+def answer_key_for(attack_id: str) -> str:
+    """The answer-key section for ONE attack, rendered for its tutorial page.
+
+    Sliced out of ANSWER-KEY.md rather than kept as a second copy: that file is
+    the document an instructor hands out, and two copies of an answer drift.
+    Collapsed behind a <details> on the page - the loop is run it, read why, fix
+    it, prove it, and an answer sitting open skips the only part that teaches.
+    """
+    if not ANSWER_KEY.exists():                 # the lab still runs without it
+        return ""
+    lines = ANSWER_KEY.read_text(encoding="utf-8").splitlines()
+    start = next((i for i, l in enumerate(lines)
+                  if re.match(rf"^###\s+{re.escape(attack_id)}\s+[-\u2013\u2014]", l)), None)
+    if start is None:
+        return ""
+    end = next((j for j in range(start + 1, len(lines))
+                if lines[j].startswith(("### ", "## ", "---"))), len(lines))
+    body = "\n".join(lines[start + 1:end]).strip()
+    # The key's links are GitHub blob links, relative to the repo. There is no
+    # file browser here, so on the page they would 404 - a dead link is worse
+    # than none. Keep the part an instructor at a laptop actually wants: the
+    # path and the line to open.
+    body = re.sub(r"\[`?([^\]]+?)`?\]\(([^)#]+)#L(\d+)\)", r"`\1` (\2:\3)", body)
+    body = re.sub(r"\[`?([^\]]+?)`?\]\((?!https?:)([^)]+)\)", r"`\1` (\2)", body)
+    return _markdown(body)
+
+
 def lab_for(slug: str) -> dict | None:
     """Wire each tutorial to the attack it explains and the controls that close it,
     so the whole loop - run it, read it, fix it, prove it - happens on one page."""
@@ -141,7 +171,8 @@ def lab_for(slug: str) -> dict | None:
         "attacks": [{"id": a.id, "name": a.name, "message": a.message,
                      "note": a.note, "entry_point": a.entry_point,
                      "stage": a.stage, "impact": a.impact,
-                     "flow": flowsvg.render(a.flow, f"{a.id}: {a.name}")}
+                     "flow": flowsvg.render(a.flow, f"{a.id}: {a.name}"),
+                         "answer": answer_key_for(a.id)}
                     for a in related],
         "controls": [{"key": k, "on": settings.on(k), **CONTROLS[k]} for k in controls],
     }

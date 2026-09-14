@@ -71,6 +71,14 @@
       {% endfor %}
     </div>
 
+
+    {% for a in lab.attacks %}{% if a.answer %}
+    <details class="answerkey">
+      <summary>Answer key &middot; {{ a.id|upper }} &mdash; the flaw, the fix, the line number</summary>
+      <div class="akbody">{{ a.answer|safe }}</div>
+    </details>
+    {% endif %}{% endfor %}
+
     <div id="labout"></div>
   </div>
   {% endif %}
