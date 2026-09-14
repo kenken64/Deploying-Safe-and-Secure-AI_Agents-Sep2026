@@ -66,6 +66,83 @@ Every attack in both days is read the same way: **entry point → execution stag
 | 7 | State & memory | saved notes | across turns | persistence · credential exposure |
 | 8 | The model itself | weights / behaviour | everywhere | why all the others matter |
 
+### One request, eight surfaces, eighteen controls
+
+This is Kestrel handling a single customer message. The dashed red arrows are the
+**surfaces** - the places an attacker gets to write text - annotated with the attack ids
+that arrive there. Everything inside a node is a **control**, at the exact point in the
+graph where it runs.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 340, "curve": "basis"}}}%%
+flowchart TB
+
+  %% ---------------- what an attacker gets to write ----------------
+  S1["<b>1 · user message</b><br/>chat input"]
+  S2["<b>2 · retrieved content</b><br/>help-centre article"]
+  S3["<b>3 · tool arguments</b><br/>written by the model"]
+  S4["<b>4 · tool results</b><br/>DB / API response"]
+  S5["<b>5 · external APIs</b><br/>payment · shipping"]
+  S6["<b>6 · other agents</b><br/>helper summaries"]
+  S7["<b>7 · state / memory</b><br/>saved notes · checkpoints"]
+  S8["<b>8 · the model itself</b><br/>steerable by design"]
+
+  %% ---------------- the graph, and the control at each node ----------------
+  IN(["the customer asks"])
+  READ["<b>read_message</b><br/>D1 SECURE_INTAKE · structural, then content"]
+  RECALL["<b>recall</b> · long-term notes <i>· Day 2 node</i><br/>D2 SECURE_THREAD_IDS · random, bound to identity<br/>D2 SECURE_MEMORY_WRITES · who may leave a note"]
+  RETR["<b>retrieve</b> · the help centre<br/>D1 SECURE_PROVENANCE · every scrap carries its origin<br/>D2 SECURE_STATE_SPLIT · untrusted text stays untrusted"]
+  CONS["<b>consult</b> · sub-agents <i>· Day 2 node</i><br/>D2 SECURE_QUARANTINE · a summary is data, not instruction<br/>D2 SECURE_PRIV_SEP · the reader may not act"]
+  PLAN{{"<b>plan</b> · the model picks the next edge<br/>D1 SECURE_NO_CREDS_IN_STATE · nothing secret in context<br/>D2 SECURE_LIMITS · steps · tokens · sessions · spend"}}
+  ACT["<b>act</b> · gates before the side effect<br/>D2 SECURE_OUTPUT_GUARD · guard what it will <b>DO</b><br/>D2 SECURE_HITL · a human, before, never after"]
+  EXEC["<b>the secure executor</b> · one chokepoint · D1 SECURE_EXECUTOR<br/>1 validate args · D1 SECURE_TOOLS<br/>2 authorize · D1 SECURE_AUTHZ, three levels<br/>3 execute · D1 SECURE_TENANCY · D1 SECURE_EGRESS<br/>4 validate the result · D1 SECURE_TOOL_RESULTS<br/>5 log · the raw record, always on<br/>D2 SECURE_TELEMETRY · detection rules and behavioural baselines, over every node"]
+  REPLY["<b>reply</b> · the last gate before the world<br/>D2 SECURE_OUTPUT_GUARD · guard what it <b>SAYS</b>"]
+  OUT(["the customer reads"])
+  WORLD[("the world<br/>store DB · payment · shipping · memory store")]
+
+  %% ---------------- where the attacks come in ----------------
+  S1 -.->|"a2 · a4"| READ
+  S7 -.->|"b2 · b3 · b4"| RECALL
+  S2 -.->|"a3"| RETR
+  S6 -.->|"b1 · b5"| CONS
+  S8 -.-> PLAN
+  S3 -.->|"a1 · a5"| ACT
+  S4 -.->|"a6"| EXEC
+  S5 -.->|"a7"| EXEC
+
+  %% ---------------- the path ----------------
+  IN --> READ
+  READ --> RECALL --> RETR --> CONS --> PLAN
+  READ -->|"blocked at intake"| REPLY
+  PLAN -->|"a tool call"| ACT
+  PLAN -->|"no tool · b8 stops here"| REPLY
+  ACT -->|"held for a human · b7 stops here"| REPLY
+  ACT --> EXEC
+  EXEC -->|"the irreversible bit"| WORLD
+  EXEC -->|"result into state, then loop"| PLAN
+  REPLY -->|"b6 tries to leave here"| OUT
+
+  %% ---------------- styling ----------------
+  classDef surface fill:#fdecea,stroke:#c0392b,stroke-width:1px,color:#7b241c
+  classDef stage   fill:#eaf1f8,stroke:#2c3e50,stroke-width:1px,color:#17202a
+  classDef model   fill:#fff5e0,stroke:#b9770e,stroke-width:1px,color:#6e4b02
+  classDef sink    fill:#ececec,stroke:#555555,stroke-width:1px,color:#1c1c1c
+
+  class S1,S2,S3,S4,S5,S6,S7,S8 surface
+  class READ,RECALL,RETR,CONS,ACT,EXEC,REPLY stage
+  class PLAN model
+  class IN,OUT,WORLD sink
+```
+
+**D1** controls are Day 1's - they ship locked on in Day 2, because Day 2's premise is that
+the edge already failed. **D2** controls are the ones you switch on yourself. `recall` and
+`consult` do not exist on Day 1: the interior grows the nodes the interior attacks need.
+
+Read it the way the attacks read: an arrow **in** is an entry point, the node it lands on
+is the execution stage, and the impact is whatever is left after the controls in that node
+- and the ones downstream of it - have run. Every named control is a runtime switch:
+`vulnerable_*` and `secure_*` both live in the file, and the toggle picks one.
+
 ---
 
 ## How the lab works
