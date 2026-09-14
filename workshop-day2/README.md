@@ -198,6 +198,13 @@ python kestrel.py attack all --secure
 python kestrel.py test
 ```
 
+> **The proof tests want the mock.** Some of them assert what the *model* did -
+> that the attack actually fired - and only the mock is deterministic. Run them
+> with `LLM_PROVIDER=openrouter` and those skip, saying so, rather than going red
+> on a run where the model happened not to take the bait. The tests that assert
+> what the *code* does run on every provider. To check a live model, run the
+> attacks themselves: `python kestrel.py attack all --secure`.
+
 ---
 
 ## What's new in this folder

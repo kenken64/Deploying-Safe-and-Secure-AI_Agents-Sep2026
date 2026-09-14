@@ -23,6 +23,21 @@ ALICE = Principal(id="CUST-1001", display_name="Alice Tan", role="customer",
                   customer_id="CUST-1001")
 
 
+#: Some proofs assert what the MODEL did - that the attack actually fired. Only
+#: the mock is deterministic, so against a real model these go red on a run where
+#: llama simply did not take the bait, which proves nothing either way about the
+#: controls. Skipped rather than weakened: the assertion is true, its precondition
+#: is not guaranteed. To check a live model, run the attacks directly:
+#:
+#:     python kestrel.py attack all --secure
+#:
+#: The tests that assert what the CODE does keep running on every provider.
+NEEDS_A_DETERMINISTIC_MODEL = pytest.mark.skipif(
+    settings.llm_provider != "mock",
+    reason=(f"asserts the model took the bait; LLM_PROVIDER={settings.llm_provider} "
+            f"is not deterministic - re-run with LLM_PROVIDER=mock"))
+
+
 @pytest.fixture(autouse=True)
 def clean():
     db.reset()
@@ -32,6 +47,7 @@ def clean():
     settings.apply_profile("vulnerable")
 
 
+@NEEDS_A_DETERMINISTIC_MODEL
 @pytest.mark.parametrize("attack_id", ORDER)
 def test_attack_lands_against_the_shipped_build(attack_id):
     settings.apply_profile("vulnerable")

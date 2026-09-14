@@ -20,6 +20,21 @@ BEN = Principal(id="CUST-1002", display_name="Ben Ortiz", role="customer",
                 customer_id="CUST-1002")
 
 
+#: Some proofs assert what the MODEL did - that the attack actually fired. Only
+#: the mock is deterministic, so against a real model these go red on a run where
+#: llama simply did not take the bait, which proves nothing either way about the
+#: controls. Skipped rather than weakened: the assertion is true, its precondition
+#: is not guaranteed. To check a live model, run the attacks directly:
+#:
+#:     python kestrel.py attack all --secure
+#:
+#: The tests that assert what the CODE does keep running on every provider.
+NEEDS_A_DETERMINISTIC_MODEL = pytest.mark.skipif(
+    settings.llm_provider != "mock",
+    reason=(f"asserts the model took the bait; LLM_PROVIDER={settings.llm_provider} "
+            f"is not deterministic - re-run with LLM_PROVIDER=mock"))
+
+
 @pytest.fixture(autouse=True)
 def clean():
     db.reset()
@@ -33,6 +48,7 @@ def clean():
     settings.apply_profile("day1-only")
 
 
+@NEEDS_A_DETERMINISTIC_MODEL
 @pytest.mark.parametrize("attack_id", ORDER)
 def test_attack_lands_past_the_entire_day1_edge(attack_id):
     settings.apply_profile("day1-only")
@@ -121,6 +137,7 @@ def test_output_guard_inspects_what_it_says_and_what_it_does():
     assert guardrails.check_reply("Your order is on its way.", session).allowed
 
 
+@NEEDS_A_DETERMINISTIC_MODEL
 def test_the_legitimate_looking_attack_still_surfaces():
     """Day 2 slide 36: status=ok, errors=0, and it is still an exfiltration."""
     settings.apply_profile("secure")
@@ -128,6 +145,7 @@ def test_the_legitimate_looking_attack_still_surfaces():
     assert board.findings, "behavioural layer produced no finding on a valid-looking exfil"
 
 
+@NEEDS_A_DETERMINISTIC_MODEL
 def test_detection_and_blocking_are_both_required():
     """Workshop 2 phase C: 'exfil attempt is logged AND blocked'.
     Seeing it isn't enough; stopping it isn't enough."""
@@ -140,6 +158,7 @@ def test_detection_and_blocking_are_both_required():
 
 
 # ---------------------------------------------------------------- JUDGE (blocks 9-10) --
+@NEEDS_A_DETERMINISTIC_MODEL
 def test_the_interrupt_fires_before_the_action_not_after():
     settings.apply_profile("secure")
     before = len(db.refunds())
