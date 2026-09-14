@@ -172,6 +172,91 @@ attack, and watch the light.
 **The control room** (`/console`) is the two-pane view the course demos from: customer chat
 on the left, lights and trace on the right.
 
+### The six tables behind it
+
+One seeded SQLite file, identical on both days. It is worth a diagram because four of the
+eight surfaces end here, and because of what the schema does **not** contain.
+
+```mermaid
+erDiagram
+  CUSTOMERS ||--o{ ORDERS   : "customer_id · the tenancy boundary"
+  ORDERS    ||--o{ REFUNDS  : "order_id · the irreversible write"
+  CUSTOMERS ||--o{ THREADS  : "owner_id · who may read the checkpoints"
+  CUSTOMERS |o--o{ MEMORIES : "scope · or the literal 'global'"
+
+  CUSTOMERS {
+    TEXT id PK "CUST-1001 .. 1003"
+    TEXT name
+    TEXT email
+    TEXT tier "standard · gold"
+  }
+  ORDERS {
+    TEXT id PK "ORD-100001 .. 100008"
+    TEXT customer_id FK "by convention only"
+    TEXT product
+    INTEGER amount_cents "a1 leaks these"
+    TEXT status
+    TEXT placed_on
+    TEXT ship_to "a home address"
+    TEXT tracking_url "a7 fetches this"
+  }
+  REFUNDS {
+    INTEGER id PK "autoincrement"
+    TEXT order_id FK "by convention only"
+    INTEGER amount_cents "b7 · the $1,890 nobody approved"
+    TEXT reason
+    TEXT issued_by "principal id, never the model"
+    TEXT issued_at
+  }
+  THREADS {
+    TEXT thread_id PK "b3 · sequential, until you fix it"
+    TEXT owner_id FK "checked on EVERY read, or not at all"
+    TEXT created_at
+  }
+  MEMORIES {
+    INTEGER id PK "autoincrement"
+    TEXT scope "customer id, or global"
+    TEXT kind "preference · procedural · policy"
+    TEXT text
+    INTEGER approved "b4 · the flag the model must not set"
+    TEXT written_by
+    TEXT written_at
+  }
+```
+
+**There is not one `FOREIGN KEY` in that schema.** Every line in the diagram is a
+convention the application code agrees to honour - which is the lesson, not an oversight.
+The database will hand you another customer's orders without complaint; `secure_orders_for`
+is the only thing that won't, and it sits **below** the model, where the model can neither
+reach it nor argue with it. That is Day 1's rule 2, and it is a property of your code, not
+of your store.
+
+Read the tables the way you read the surfaces:
+
+| Table | What an attacker wants from it | Closed by |
+|---|---|---|
+| `orders` · `customers` | someone else's rows - addresses, totals | `SECURE_TENANCY` |
+| `refunds` | one irreversible write, unreviewed | `SECURE_HITL` |
+| `threads` | a guessed id, and another user's whole history | `SECURE_THREAD_IDS` |
+| `memories` | `approved = 1`, and the poison outlives the session | `SECURE_MEMORY_WRITES` |
+
+And then the sixth table, which joins to nothing at all:
+
+```mermaid
+erDiagram
+  ARTICLES {
+    TEXT id PK "KB-001 .. KB-005"
+    TEXT title
+    TEXT body "read into context as data · a3 · b1"
+    INTEGER poisoned "1 for KB-004 and KB-005"
+  }
+```
+
+That is the uncomfortable one. The row carrying the Day 2 opening demo has no owner, no
+relationship to any user, and no access control worth the name - because it never needed
+any. It only has to be *readable*, and a help-centre article is readable by design. Two of
+its five rows are poisoned, and nothing in the schema can tell you which.
+
 ---
 
 ## The model
