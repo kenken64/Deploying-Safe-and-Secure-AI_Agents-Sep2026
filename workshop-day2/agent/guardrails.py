@@ -32,6 +32,9 @@ SQL_RE = re.compile(r"\b(select|insert|update|delete|drop|union)\b.{0,40}\b(from
 SHELL_RE = re.compile(r"(;\s*(rm|curl|wget|nc|bash|sh)\b|\$\(|`|\|\s*sh\b)")
 TRAVERSAL_RE = re.compile(r"\.\./|\.\.\\\\")
 SYSTEM_PROMPT_FINGERPRINT = "You are Kestrel, the support agent"
+#: Where a summary may legitimately be sent. Anywhere else is exfiltration,
+#: however valid the call looks.
+APPROVED_RECIPIENT_DOMAINS = {"kestrel.example"}
 
 
 def _entropy(s: str) -> float:
@@ -58,22 +61,23 @@ def vulnerable_check_reply(text: str, session: Session) -> Verdict:
 
 
 def secure_check_reply(text: str, session: Session) -> Verdict:
-    """STUDENT EXERCISE - not implemented yet. (See tutorials/v12-silent-exfiltration.md.)
+    """Inspect what the agent is about to SAY.
+    (See tutorials/v12-silent-exfiltration.md.)
 
-    Inspect what the agent is about to SAY. In order, return `Verdict.block(reason,
-    layer="output")` for the first match:
-
-      - `SYSTEM_PROMPT_FINGERPRINT` appears in `text`.
-      - `SECRET_RE` matches (an API-key/credential-shaped string).
-      - `foreign_customer_ids(text, session)` is non-empty (another customer's id).
-
-    Otherwise `Verdict.allow(layer="output")`.
+    The operator's own prompt, a credential-shaped string, and another customer's
+    id are all things that must never leave, however the model came to say them.
     """
-    raise NotImplementedError(
-        "guardrails.secure_check_reply: TODO - block system-prompt leakage, "
-        "credential-shaped strings, and foreign customer ids "
-        "(see tutorials/v12-silent-exfiltration.md)"
-    )
+    if SYSTEM_PROMPT_FINGERPRINT in text:
+        return Verdict.block("the reply contains the operator's system prompt",
+                             layer="output")
+    if SECRET_RE.search(text):
+        return Verdict.block("the reply contains a credential-shaped string",
+                             layer="output")
+    foreign = foreign_customer_ids(text, session)
+    if foreign:
+        return Verdict.block(f"the reply names another customer: {', '.join(foreign)}",
+                             layer="output")
+    return Verdict.allow("nothing to block in the reply", layer="output")
 
 
 def check_reply(text: str, session: Session) -> Verdict:
@@ -97,30 +101,39 @@ def vulnerable_check_tool_args(call: ToolCall, session: Session) -> Verdict:
 
 def secure_check_tool_args(call: ToolCall, session: Session) -> Verdict:
     """A payload hidden inside an innocent-looking parameter.
-    STUDENT EXERCISE - not implemented yet. (See tutorials/v12-silent-exfiltration.md.)
+    (See tutorials/v12-silent-exfiltration.md.)
 
     This is the half people forget. The call is schema-valid, the authorization
-    passes, the API returns 200 - and data walks out inside an argument. Inspect
-    `blob = json.dumps(call.args, default=str)` and, in order, return
-    `Verdict.block(reason, layer="tool-args")` for the first match:
-
-      - `SQL_RE` matches (SQL in an argument).
-      - `SHELL_RE` matches (shell metacharacters).
-      - `TRAVERSAL_RE` matches (path traversal).
-      - `foreign_customer_ids(blob, session)` is non-empty.
-      - any string argument longer than 200 chars has `_entropy(value) > 4.2`
-        (a possible encoded blob).
-      - `call.name == "send_summary"` and the recipient's domain isn't in the
-        approved set (`{"kestrel.example"}`).
-
-    Otherwise `Verdict.allow(layer="tool-args")`.
+    passes, the API returns 200 - and data walks out inside an argument.
     """
-    raise NotImplementedError(
-        "guardrails.secure_check_tool_args: TODO - inspect tool arguments for SQL, "
-        "shell metacharacters, path traversal, foreign customer ids, high-entropy "
-        "blobs, and unapproved outbound domains "
-        "(see tutorials/v12-silent-exfiltration.md)"
-    )
+    blob = json.dumps(call.args, default=str)
+
+    if SQL_RE.search(blob):
+        return Verdict.block(f"SQL in an argument to {call.name}", layer="tool-args")
+    if SHELL_RE.search(blob):
+        return Verdict.block(f"shell metacharacters in an argument to {call.name}",
+                             layer="tool-args")
+    if TRAVERSAL_RE.search(blob):
+        return Verdict.block(f"path traversal in an argument to {call.name}",
+                             layer="tool-args")
+    foreign = foreign_customer_ids(blob, session)
+    if foreign:
+        return Verdict.block(f"{call.name} carries another customer's id: "
+                             f"{', '.join(foreign)}", layer="tool-args")
+    for key, value in call.args.items():
+        # A long, high-entropy argument is what an encoded blob looks like on the
+        # way out. The call is schema-valid; that is exactly the problem.
+        if isinstance(value, str) and len(value) > 200 and _entropy(value) > 4.2:
+            return Verdict.block(f"{call.name}.{key} looks like an encoded blob "
+                                 f"({len(value)} chars, entropy "
+                                 f"{_entropy(value):.1f})", layer="tool-args")
+    if call.name == "send_summary":
+        recipient = str(call.args.get("recipient") or "")
+        domain = recipient.rpartition("@")[2].lower()
+        if domain not in APPROVED_RECIPIENT_DOMAINS:
+            return Verdict.block(f"send_summary to an unapproved domain: "
+                                 f"{domain or '(none)'}", layer="tool-args")
+    return Verdict.allow("nothing to block in the arguments", layer="tool-args")
 
 
 def check_tool_args(call: ToolCall, session: Session) -> Verdict:

@@ -43,17 +43,18 @@ def vulnerable_thread_id(principal: Principal) -> str:
 
 def secure_thread_id(principal: Principal) -> str:
     """SECURE: cryptographically random, bound to the authenticated user at creation.
-    STUDENT EXERCISE - not implemented yet. (See tutorials/v09-thread-id-guessing.md.)
+    (See tutorials/v09-thread-id-guessing.md.)
 
-    Generate a token with `secrets.token_urlsafe(24)` (not a counter, not a
-    UUIDv1), prefix it (e.g. `"thr_"`), insert a row into `threads` binding it to
-    `principal.id` via `db.connect()`, and return the id.
+    Not a counter, not a UUIDv1. Unguessable is the lock; the owner row is what
+    `read_thread` checks the key against on every single access.
     """
-    raise NotImplementedError(
-        "memory.secure_thread_id: TODO - generate a random id and bind it to "
-        "principal.id in the threads table "
-        "(see tutorials/v09-thread-id-guessing.md)"
-    )
+    thread_id = f"thr_{secrets.token_urlsafe(24)}"
+    conn = db.connect()
+    with conn:
+        conn.execute("INSERT INTO threads (thread_id, owner_id, created_at)"
+                     " VALUES (?,?,datetime('now'))", (thread_id, principal.id))
+    conn.close()
+    return thread_id
 
 
 def new_thread_id(principal: Principal) -> str:
@@ -63,17 +64,19 @@ def new_thread_id(principal: Principal) -> str:
 
 def read_thread(thread_id: str, principal: Principal) -> list[dict[str, Any]]:
     """Reading conversation history back out of the checkpoint store.
-    The SECURE_THREAD_IDS branch is a STUDENT EXERCISE - not implemented yet. (See
-    tutorials/v09-thread-id-guessing.md.)
+    (See tutorials/v09-thread-id-guessing.md.)
     """
     if settings.on("SECURE_THREAD_IDS"):
-        # ownership must be validated on EVERY access, not only at creation - look
-        # up the owner_id for this thread_id (db.rows against the `threads` table)
-        # and raise Denied("thread", ...) unless it matches principal.id.
-        raise NotImplementedError(
-            "memory.read_thread: TODO - check thread ownership on every access "
-            "(see tutorials/v09-thread-id-guessing.md)"
-        )
+        # Ownership is validated on EVERY access, not only at creation. An
+        # unguessable id is a lock; this is the check that the key fits.
+        owner = db.rows("SELECT owner_id FROM threads WHERE thread_id = ?", (thread_id,))
+        if not owner or owner[0]["owner_id"] != principal.id:
+            board.record(session="-", principal=principal.id, node="memory",
+                         verdict="denied", severity="alert",
+                         control="SECURE_THREAD_IDS",
+                         detail=f"{principal.id} tried to read checkpoint history "
+                                f"for a thread they do not own")
+            raise Denied("thread", f"{thread_id} does not belong to {principal.id}")
     else:
         board.light("state_containment", "red",
                     f"{principal.id} read checkpoint history for {thread_id} "
@@ -128,25 +131,41 @@ def vulnerable_remember(kind: str, text: str, session: Session) -> str:
 
 def secure_remember(kind: str, text: str, session: Session) -> str:
     """SECURE: the model may PROPOSE. Code and humans decide what sticks.
-    STUDENT EXERCISE - not implemented yet. (See tutorials/v10-memory-landmine.md.)
+    (See tutorials/v10-memory-landmine.md.)
 
-    Yesterday's rule - the model may request, only code decides - applied to memory:
-
-      1. treat any `kind` not in `MEMORY_GATES` as `"policy"` - fail safe, not open.
-      2. refuse instruction-shaped text outright (`directives.find(text)`): return
-         "I can't save that as a note." without writing anything. A memory is a
-         fact about the user, not an instruction to the agent.
-      3. otherwise, `approved = MEMORY_GATES[kind] == "allowed"`; insert the row
-         with that approved flag (never hardcode `approved=1`); log it with
-         `control="SECURE_MEMORY_WRITES"`.
-      4. return a message that differs by outcome: saved outright if approved,
-         "passed to a human to approve" if pending.
+    Yesterday's rule - the model may request, only code decides - applied to the
+    one store that outlives the session.
     """
-    raise NotImplementedError(
-        "memory.secure_remember: TODO - gate memory writes by kind, refuse "
-        "instruction-shaped text, and never auto-approve "
-        "(see tutorials/v10-memory-landmine.md)"
-    )
+    # 1. Fail safe: an unrecognised kind is treated as the most dangerous one.
+    if kind not in MEMORY_GATES:
+        kind = "policy"
+
+    # 2. A memory is a fact about the user, not an instruction to the agent.
+    if directives.find(text):
+        board.record(session=session.id, principal=session.principal.id, node="memory",
+                     tool="remember", verdict="refused", severity="warn",
+                     control="SECURE_MEMORY_WRITES",
+                     detail=f"instruction-shaped memory refused :: {text[:120]}")
+        return "I can't save that as a note."
+
+    # 3. The model may PROPOSE. Only code decides what sticks.
+    approved = MEMORY_GATES[kind] == "allowed"
+    conn = db.connect()
+    with conn:
+        conn.execute("INSERT INTO memories (scope, kind, text, approved, written_by, written_at)"
+                     " VALUES (?,?,?,?,?,datetime('now'))",
+                     (session.principal.customer_id or "global", kind, text,
+                      int(approved), session.principal.id))
+    conn.close()
+    board.record(session=session.id, principal=session.principal.id, node="memory",
+                 tool="remember", verdict="written" if approved else "pending",
+                 severity="info" if approved else "warn",
+                 control="SECURE_MEMORY_WRITES",
+                 detail=f"kind={kind} approved={int(approved)} :: {text[:120]}")
+
+    # 4. Say which of the two actually happened.
+    return ("Noted. I'll remember that." if approved else
+            "I've passed that to a human to approve before I save it.")
 
 
 def remember(kind: str, text: str, session: Session) -> str:

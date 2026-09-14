@@ -83,21 +83,33 @@ def vulnerable_gate(call: ToolCall, session: Session) -> None:
 
 def secure_gate(call: ToolCall, session: Session) -> None:
     """SECURE: raise BEFORE the side effect, with the call frozen.
-    STUDENT EXERCISE - not implemented yet. (See tutorials/v14-irreversible-action.md.)
+    (See tutorials/v14-irreversible-action.md.)
 
-    Call `gate_reason(call, session)`; if it returns `None`, return (nothing to
-    gate). Otherwise: generate an `approval_id` (e.g. `"apr_" +
-    secrets.token_urlsafe(8)`), store a `Pending` in `PENDING` keyed by that id -
-    `args=dict(call.args)` must be a COPY, and `frozen` must be a rendered
-    snapshot of the call, because the state must stay immutable while the review
-    is pending - light `human_gate` amber, log a record
-    (`control="SECURE_HITL"`), and finally `raise NeedsApproval(call, reason,
-    approval_id)` so the caller stops before the side effect happens.
+    The call is frozen into `Pending` - args copied, never referenced - because
+    you approve the thing you reviewed, not one that changed underneath you.
+    `NeedsApproval` then unwinds the caller before the side effect happens.
     """
-    raise NotImplementedError(
-        "hitl.secure_gate: TODO - freeze the call and raise NeedsApproval before "
-        "the side effect (see tutorials/v14-irreversible-action.md)"
+    reason = gate_reason(call, session)
+    if reason is None:
+        return                      # nothing to gate; approval fatigue is a risk too
+
+    approval_id = f"apr_{secrets.token_urlsafe(8)}"
+    frozen = f"{call.name}({', '.join(f'{k}={v}' for k, v in sorted(call.args.items()))})"
+    PENDING[approval_id] = Pending(
+        id=approval_id,
+        session_id=session.id,
+        principal_id=session.principal.id,
+        tool=call.name,
+        args=dict(call.args),       # a COPY - the reviewer's copy cannot be mutated
+        reason=reason,
+        frozen=frozen,
     )
+    board.light("human_gate", "amber", f"{call.name} paused for a human: {reason}")
+    board.record(session=session.id, principal=session.principal.id, node="hitl",
+                 tool=call.name, verdict="awaiting_approval", severity="warn",
+                 control="SECURE_HITL", detail=f"{reason} :: {frozen}")
+    # BEFORE, never after. The caller stops here; the side effect has not happened.
+    raise NeedsApproval(call, reason, approval_id)
 
 
 def gate(call: ToolCall, session: Session) -> None:
