@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1990 720" width="1990" height="720" role="img" aria-labelledby="t d">
+<title id="t">The Kestrel agent and its eight attack surfaces</title>
+<desc id="d">Customer chat (1) and help-centre docs (2) feed into the Kestrel LangGraph agent, which reads the message, consults helper agents (6), calls a tool against the order and customer database (3 out, 4 back), reaches external payment and shipping APIs (5), and replies. State and memory (7) persist across turns, and the model itself decides the route (8).</desc>
+<style>
+  :root{
+    --bg:#ffffff; --card:#f1f5f9; --cardStroke:#dbe3ec;
+    --panel:#fbfcfe; --panelStroke:#c6d2e1;
+    --inner:#ffffff; --innerStroke:#dee7f1;
+    --ink:#1f2a36; --sub:#6b7c8f; --title:#1a4f8a;
+    --line:#8fa2b6; --badge:#7f93a8; --badgeInk:#ffffff;
+    --accent:#e8791a; --accentBg:#fdf3e8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d1117; --card:#161b22; --cardStroke:#30363d;
+      --panel:#11161d; --panelStroke:#30363d;
+      --inner:#1b222b; --innerStroke:#30363d;
+      --ink:#e6edf3; --sub:#9198a1; --title:#6cb0ff;
+      --line:#7d8590; --badge:#6e7681; --badgeInk:#0d1117;
+      --accent:#f0883e; --accentBg:#2a1c10;
+    }
+  }
+  text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  .lbl{font-size:30px;font-weight:700;fill:var(--ink)}
+  .sub{font-size:27px;fill:var(--sub)}
+  .step{font-size:28px;fill:var(--ink)}
+  .route{font-size:27px;font-style:italic;fill:var(--sub)}
+  .num{font-size:24px;font-weight:700;fill:var(--badgeInk)}
+  .numA{font-size:24px;font-weight:700;fill:#ffffff}
+  .card{fill:var(--card);stroke:var(--cardStroke);stroke-width:2}
+  .inner{fill:var(--inner);stroke:var(--innerStroke);stroke-width:2}
+  .flow{stroke:var(--line);stroke-width:3;fill:none}
+  .tick{stroke:var(--line);stroke-width:2.5;fill:none}
+</style>
+<defs>
+  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,1 L9,5 L0,9 z" fill="var(--line)"/>
+  </marker>
+  <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,1 L9,5 L0,9 z" fill="var(--accent)"/>
+  </marker>
+</defs>
+
+<rect width="1990" height="720" fill="var(--bg)"/>
+
+<!-- ============ left: what the customer and the docs put in ============ -->
+<rect x="40" y="80" width="375" height="140" rx="14" class="card"/>
+<text x="227" y="138" class="lbl" text-anchor="middle">Customer chat</text>
+<text x="227" y="181" class="sub" text-anchor="middle">the widget</text>
+
+<rect x="40" y="368" width="375" height="140" rx="14" class="card"/>
+<text x="227" y="426" class="lbl" text-anchor="middle">Help-centre docs</text>
+<text x="227" y="469" class="sub" text-anchor="middle">retrieved content</text>
+
+<path d="M420 152 L 500 160" class="flow" marker-end="url(#a)"/>
+<path d="M420 436 L 500 426" class="flow" marker-end="url(#a)"/>
+
+<!-- ============ centre: the agent ============ -->
+<rect x="510" y="10" width="760" height="680" rx="18" fill="var(--panel)" stroke="var(--panelStroke)" stroke-width="2.5"/>
+<text x="885" y="64" text-anchor="middle" style="font-size:34px;font-weight:800;fill:var(--title);letter-spacing:.5px">KESTREL AGENT<tspan style="font-weight:400"> · LangGraph</tspan></text>
+
+<rect x="580" y="92"  width="610" height="68" rx="11" class="inner"/>
+<text x="885" y="135" class="step" text-anchor="middle">Read message</text>
+<path d="M885 162 L 885 182" class="tick" marker-end="url(#a)"/>
+
+<rect x="580" y="186" width="610" height="68" rx="11" class="inner"/>
+<text x="885" y="229" class="step" text-anchor="middle">Consult helper agents</text>
+<path d="M885 256 L 885 276" class="tick" marker-end="url(#a)"/>
+
+<rect x="580" y="280" width="610" height="68" rx="11" class="inner"/>
+<text x="885" y="323" class="step" text-anchor="middle">Call a tool</text>
+<path d="M885 350 L 885 370" class="tick" marker-end="url(#a)"/>
+
+<rect x="580" y="374" width="610" height="68" rx="11" class="inner"/>
+<text x="885" y="417" class="step" text-anchor="middle">Reply to customer</text>
+
+<rect x="580" y="482" width="610" height="64" rx="11" class="inner"/>
+<text x="885" y="522" class="route" text-anchor="middle">The model decides the route</text>
+
+<rect x="580" y="566" width="610" height="104" rx="11" class="inner"/>
+<text x="885" y="612" class="lbl" text-anchor="middle">State &amp; memory</text>
+<text x="885" y="651" class="sub" text-anchor="middle">conversation + saved notes</text>
+
+<!-- ============ right: what the agent reaches out to ============ -->
+<rect x="1430" y="40" width="520" height="120" rx="13" fill="var(--accentBg)" stroke="var(--accent)" stroke-width="3.5"/>
+<text x="1690" y="94" class="lbl" text-anchor="middle">Helper agents × 2</text>
+<text x="1690" y="135" class="sub" text-anchor="middle">summaries, trusted</text>
+<path d="M1275 104 L 1424 104" class="flow" stroke="var(--accent)" marker-end="url(#ao)"/>
+
+<rect x="1430" y="240" width="520" height="145" rx="13" class="card"/>
+<text x="1690" y="304" class="lbl" text-anchor="middle">Order + customer DB</text>
+<text x="1690" y="347" class="sub" text-anchor="middle">tool call → result</text>
+<path d="M1274 270 L 1424 292" class="flow" marker-end="url(#a)"/>
+<path d="M1424 344 L 1274 322" class="flow" marker-end="url(#a)"/>
+
+<rect x="1430" y="468" width="520" height="145" rx="13" class="card"/>
+<text x="1690" y="532" class="lbl" text-anchor="middle">External APIs</text>
+<text x="1690" y="575" class="sub" text-anchor="middle">payment, shipping</text>
+<path d="M1274 500 L 1424 522" class="flow" marker-end="url(#a)"/>
+
+<!-- ============ the eight surface badges ============ -->
+<g>
+  <circle cx="388" cy="88"  r="23" fill="var(--badge)"/><text x="388" y="97"  class="num" text-anchor="middle">1</text>
+  <circle cx="388" cy="376" r="23" fill="var(--badge)"/><text x="388" y="385" class="num" text-anchor="middle">2</text>
+  <circle cx="1318" cy="258" r="23" fill="var(--badge)"/><text x="1318" y="267" class="num" text-anchor="middle">3</text>
+  <circle cx="1350" cy="372" r="23" fill="var(--badge)"/><text x="1350" y="381" class="num" text-anchor="middle">4</text>
+  <circle cx="1318" cy="496" r="23" fill="var(--badge)"/><text x="1318" y="505" class="num" text-anchor="middle">5</text>
+  <circle cx="1320" cy="80"  r="23" fill="var(--accent)"/><text x="1320" y="89"  class="numA" text-anchor="middle">6</text>
+  <circle cx="558" cy="606" r="23" fill="var(--badge)"/><text x="558" y="615" class="num" text-anchor="middle">7</text>
+  <circle cx="1212" cy="500" r="23" fill="var(--badge)"/><text x="1212" y="509" class="num" text-anchor="middle">8</text>
+</g>
+</svg>

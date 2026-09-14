@@ -53,6 +53,8 @@ scripts, no virtualenv activation.
 
 ### The eight surfaces
 
+![The Kestrel agent and the eight places an attacker can write into it](docs/images/kestrel-eight-surfaces.svg)
+
 Every attack in both days is read the same way: **entry point → execution stage → impact.**
 
 | # | Surface | Entry point | Stage | Impact |
