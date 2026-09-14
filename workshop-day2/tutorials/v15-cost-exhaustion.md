@@ -106,6 +106,81 @@ watching the budget line change in `/console`, is your real feedback loop.
 ```
 
 The budget line is printed on every run, so you can watch the numbers climb in real time.
+The same four numbers render as bars in the control room's **Budget** panel, and under the
+lights on this page after you press Run - amber as they approach a cap, red once past it.
+
+---
+
+## Notes for demoing this live
+
+Measured against `meta-llama/llama-3.1-8b-instruct` on OpenRouter. The five limits are
+environment variables (`KESTREL_LIMIT_*`), so a hosted lab can be retuned between sessions
+without touching code.
+
+**Whichever level fires first leaves the others below their caps.** You cannot make every
+bar fill. That is not a tuning problem - it is this block's thesis restated: five
+independent levels, and the attack picks the one you did not guard.
+
+### Recipe A - the token budget. Use this one.
+
+```
+KESTREL_LIMIT_STEPS_PER_SESSION=20
+KESTREL_LIMIT_REPEAT_CYCLE=20
+KESTREL_LIMIT_TOKENS_PER_SESSION=2500
+KESTREL_LIMIT_TOKENS_PER_DAY=4000
+KESTREL_LIMIT_COST_CEILING_USD=0.25      # deliberately out of reach
+```
+
+```
+  blocked  limit tripped - 4 token budget: 3032 tokens this session, cap is 2500
+  budget   tokens=3032/2500      <- bar past 100%, red
+```
+
+Two runs out of two, identical numbers. The token bar visibly fills, which is what makes
+this read as *exhaustion* from the back of the room.
+
+Prefer it because **tokens are the honest unit**. The dollar figure is simulated -
+`KESTREL_USD_PER_1K_TOKENS` defaults to `$0.002`, roughly **31x** the real price of
+llama-3.1-8b (`$0.000065` per 1K). A money demo built on that number is a fabricated
+number. Burning tokens *is* the economic exhaustion; say the word "bill" while pointing at
+the token bar.
+
+### Recipe B - the cost ceiling
+
+```
+KESTREL_LIMIT_TOKENS_PER_SESSION=100000
+KESTREL_LIMIT_TOKENS_PER_DAY=100000
+KESTREL_LIMIT_COST_CEILING_USD=0.005     # NOT 0.01
+```
+
+Gives `5 cost ceiling`, with two things to know.
+
+The token bars sit near zero - they have to be loose enough for the run to reach level 5
+at all.
+
+And **the check lags**: `check_step` runs at the START of a step, so a run that ends before
+the next check can finish over the cap without ever tripping. At `0.01` that happened on one
+run in two - `cost=$0.0101/$0.01` with the light still green. `0.005` is crossed early
+enough that a later check catches it: two out of two.
+
+Running A, then B, on the same attack is the strongest version of the block - the same
+sentence from the customer, caught by a different level each time.
+
+### With the mock
+
+`b8` burns only ~320 tokens and ~$0.0006 offline, so scale down:
+`KESTREL_LIMIT_TOKENS_PER_SESSION=300`, or `KESTREL_LIMIT_COST_CEILING_USD=0.0005`.
+
+### Resetting between demos
+
+Every attack run calls `db.reset()` **and** `limits.reset()`, so pressing Run repeatedly is
+already clean - three consecutive b8 runs leave `daily=415`, not `1245`. Only **freeform
+chat** accumulates. After a stretch of typing in the control room, press **Reseed database**
+before demoing, or the daily counter is pre-loaded and the wrong level fires.
+
+> **Do not demo by draining a real API key.** When the provider refuses, the adapter raises
+> `RuntimeError` and you get a 500, not a lesson. Keep a credit limit on the key as the
+> safety net and demo the drain with the meter.
 
 ## 6. On your own agent
 
