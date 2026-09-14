@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 
 from config import CONTROLS, DAY2, settings
 from agent import db, graph, hitl, limits, memory
@@ -20,6 +21,17 @@ from attacks.catalogue import ATTACKS, ORDER, Attack
 
 BAR = "=" * 78
 DASH = "-" * 78
+
+
+def _line(kind: str, text: str) -> dict:
+    """One transcript line, in the same shape graph._line produces.
+
+    The two special runners below tell their story across more than one session,
+    so they cannot simply forward a single graph transcript. They build one, and
+    every runner returns the same keys - otherwise the console has a trace and
+    the tutorial page prints "(no trace)".
+    """
+    return {"kind": kind, "text": text, "t": time.time()}
 
 
 def principal_for(customer_id: str) -> Principal:
@@ -148,6 +160,19 @@ def _run_thread_guess(attack: Attack, verbose: bool) -> dict:
     landed = bool(read)
     result = {"lights": dict(board.lights), "breaches": list(dict.fromkeys(board.breaches)),
               "findings": list(board.findings)}
+
+    trace = [_line("user", 'Ben asks: "Where is my espresso machine, ORD-100003?"'),
+             _line("memory", f"Ben's session was stored under thread id: {ben_thread}"),
+             _line("why", f"Alice ({alice.id}) tries: {', '.join(guesses)}")]
+    for g, history in read:
+        trace.append(_line("tool", f"READ {g}: {len(history)} checkpoint(s) of "
+                                   f"Ben's conversation"))
+        for snap in history[:1]:
+            for c in snap["context"][:4]:
+                trace.append(_line("memory", f"    {c[:120]}"))
+    for g, why in refused:
+        trace.append(_line("blocked", f"refused {g}: {why}"))
+
     if verbose:
         _header(attack)
         print(f"  Ben's session was stored under thread id: {ben_thread}")
@@ -162,7 +187,8 @@ def _run_thread_guess(attack: Attack, verbose: bool) -> dict:
             print(f"  refused {g}: {why}")
         _panel(result)
         _verdict(attack, landed)
-    return {"attack": attack.id, "landed": landed, "lights": result["lights"]}
+    return {"attack": attack.id, "landed": landed, "lights": result["lights"],
+            "transcript": trace, "awaiting": None}
 
 
 def _run_memory_landmine(attack: Attack, verbose: bool) -> dict:
@@ -177,6 +203,17 @@ def _run_memory_landmine(attack: Attack, verbose: bool) -> dict:
     landed = bool(planted)
     result = {"lights": dict(board.lights), "breaches": list(dict.fromkeys(board.breaches)),
               "findings": list(board.findings)}
+
+    trace = [_line("why", f'session 1 - the customer says: "{attack.message}"')]
+    trace += first["transcript"]
+    trace.append(_line("memory", "stored memories now:"))
+    for m in memory.memories()[:4]:
+        flag = "APPROVED" if m["approved"] else "pending approval"
+        trace.append(_line("blocked" if m["approved"] else "memory",
+                           f"    [{flag}] kind={m['kind']} {m['text'][:80]}"))
+    trace.append(_line("why", f'session 2 - a NEW conversation: "{attack.follow_up[0]}"'))
+    trace += second["transcript"]
+
     if verbose:
         _header(attack)
         print(f'session 1 - the customer says: "{attack.message}"')
@@ -193,7 +230,8 @@ def _run_memory_landmine(attack: Attack, verbose: bool) -> dict:
             print(f"  {line['kind']:<10} {line['text'][:140]}")
         _panel(result, ["the memory is read by every future session, for as long as it exists"])
         _verdict(attack, landed)
-    return {"attack": attack.id, "landed": landed, "lights": result["lights"]}
+    return {"attack": attack.id, "landed": landed, "lights": result["lights"],
+            "transcript": trace, "awaiting": None}
 
 
 def main(argv: list[str] | None = None) -> int:
