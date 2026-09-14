@@ -24,6 +24,7 @@ from agent.telemetry import LIGHTS, board
 from attacks.catalogue import ATTACKS, ORDER
 from store import flow as flowsvg
 from store import gate
+from store import source as srcview
 from attacks.run import run_one
 
 HERE = Path(__file__).resolve().parent
@@ -175,12 +176,14 @@ def answer_key_for(attack_id: str) -> str:
     end = next((j for j in range(start + 1, len(lines))
                 if lines[j].startswith(("### ", "## ", "---"))), len(lines))
     body = "\n".join(lines[start + 1:end]).strip()
-    # The key's links are GitHub blob links, relative to the repo. There is no
-    # file browser here, so on the page they would 404 - a dead link is worse
-    # than none. Keep the part an instructor at a laptop actually wants: the
-    # path and the line to open.
-    body = re.sub(r"\[`?([^\]]+?)`?\]\(([^)#]+)#L(\d+)\)", r"`\1` (\2:\3)", body)
-    body = re.sub(r"\[`?([^\]]+?)`?\]\((?!https?:)([^)]+)\)", r"`\1` (\2)", body)
+    # The key's links are GitHub blob links, relative to the repo. Point them at
+    # the lab's own source viewer instead, which highlights the whole def the
+    # line sits in - so "the fix" is a click, with the change on screen, rather
+    # than a path to go and find.
+    body = re.sub(r"\[`?([^\]]+?)`?\]\(([^)#]+)#L(\d+)\)",
+                  r"[`\1`](/source/\2?hl=\3)", body)
+    body = re.sub(r"\[`?([^\]]+?)`?\]\((?!https?:|/source/)([^)]+)\)",
+                  r"[`\1`](/source/\2)", body)
     return _markdown(body)
 
 
@@ -204,6 +207,22 @@ def lab_for(slug: str) -> dict | None:
                     for a in related],
         "controls": [{"key": k, "on": settings.on(k), **CONTROLS[k]} for k in controls],
     }
+
+
+@app.get("/source/{rel:path}", response_class=HTMLResponse)
+def source_view(request: Request, rel: str, hl: int = 0):
+    """The lab's own source, with the answer key's line highlighted.
+
+    Read only, .py only, inside the app root only - see store/source.py.
+    """
+    path = srcview.resolve(ROOT, rel)
+    if path is None:
+        return RedirectResponse("/tutorial")
+    block = srcview.block_at(path, hl) if hl else None
+    return templates.TemplateResponse(request, "source.html", {
+        "rel": rel, "hl": hl, "block": block,
+        "body": srcview.render(path, rel, block),
+        "title": rel, "badge": model_badge()})
 
 
 @app.get("/tutorial/{slug}", response_class=HTMLResponse)

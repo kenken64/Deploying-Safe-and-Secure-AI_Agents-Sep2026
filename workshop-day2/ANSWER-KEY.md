@@ -132,7 +132,7 @@ Not a breach. A bill. Nothing stolen, no action taken.
 
 | Before | After | What changed |
 |---|---|---|
-| Nothing capped. The only backstop is the graph's recursion limit — a framework safety net, not a control you chose. | [`limits.check_session_start`](agent/limits.py#L37) (request rate) and [`limits.check_step`](agent/limits.py#L58) (session steps, loop detection, token budget per-session **and** daily, cost ceiling). | **One rate limit isn't enough.** A gateway cap of 1 request/minute is perfectly satisfied while that single request burns 200 steps and 500K tokens. Five independent levels, because the attack picks the one you didn't guard. |
+| Nothing capped. The only backstop is the graph's recursion limit — a framework safety net, not a control you chose. | [`limits.check_session_start`](agent/limits.py#L40) (request rate) and [`limits.check_step`](agent/limits.py#L61) (session steps, loop detection, token budget per-session **and** daily, cost ceiling). | **One rate limit isn't enough.** A gateway cap of 1 request/minute is perfectly satisfied while that single request burns 200 steps and 500K tokens. Five independent levels, because the attack picks the one you didn't guard. |
 
 **The essence:** amplification is the point of agents, and the danger of them.
 
@@ -163,7 +163,7 @@ Not a breach. A bill. Nothing stolen, no action taken.
 | `SECURE_OUTPUT_GUARD` | 7 | [`guardrails.secure_check_reply`](agent/guardrails.py#L63) + [`secure_check_tool_args`](agent/guardrails.py#L102) |
 | `SECURE_TELEMETRY` | 8 | [`Board._behavioural`](agent/telemetry.py#L110) |
 | `SECURE_HITL` | 9 | [`hitl.secure_gate`](agent/hitl.py#L84) |
-| `SECURE_LIMITS` | 10 | [`limits.check_session_start`](agent/limits.py#L37) + [`check_step`](agent/limits.py#L58) |
+| `SECURE_LIMITS` | 10 | [`limits.check_session_start`](agent/limits.py#L40) + [`check_step`](agent/limits.py#L61) |
 
 ## Verify it yourself
 

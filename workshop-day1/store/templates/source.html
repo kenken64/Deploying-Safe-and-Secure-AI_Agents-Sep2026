@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block title %}{{ rel }} &middot; Kestrel Goat{% endblock %}
+{% block body %}
+<div class="panel">
+  <h2>Source</h2>
+  <p class="sub"><code>{{ rel }}</code>{% if block %} &middot; highlighting lines
+    {{ block[0] }}&ndash;{{ block[1] }}{% endif %}</p>
+  <p class="note">Read only. This is the file as it ships - the
+    <code>vulnerable_*</code> and <code>secure_*</code> pair both live here, and the
+    control picks one at runtime.</p>
+  <div class="srcwrap">{{ body|safe }}</div>
+  <p class="note" style="margin-top:14px"><a href="javascript:history.back()">&larr; back to the tutorial</a></p>
+</div>
+{% endblock %}
+{% block script %}<script>
+// Jump to the highlighted block, not the very top of the file.
+const first = document.querySelector('.sl.hi');
+if (first) first.scrollIntoView({block: 'center'});
+</script>{% endblock %}

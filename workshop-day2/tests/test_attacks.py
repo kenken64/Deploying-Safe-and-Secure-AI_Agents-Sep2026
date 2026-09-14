@@ -194,3 +194,45 @@ def test_five_limits_exist_and_each_caps_a_different_thing():
     assert {"limit_sessions_per_min", "limit_steps_per_session", "limit_repeat_cycle",
             "limit_tokens_per_session", "limit_tokens_per_day",
             "limit_cost_ceiling_usd"} <= set(vars(settings))
+
+
+# ------------------------------------------------------- the answer key ------------
+def test_answer_key_line_anchors_still_point_at_the_code():
+    """The key hardcodes file:line for every fix, and the source moves.
+
+    Adding one function to limits.py silently pushed two anchors onto blank
+    lines - and the tutorial pages link to them, so a student following the
+    answer key lands nowhere. Cheap to assert, so assert it.
+    """
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    key = root / "ANSWER-KEY.md"
+    if not key.exists():                       # the lab runs without it
+        return
+    problems = []
+    for m in re.finditer(r"\[`?([^\]]+?)`?\]\(([^)#]+)#L(\d+)\)", key.read_text()):
+        label, rel, line = m.group(1), m.group(2), int(m.group(3))
+        path = root / rel
+        assert path.exists(), f"{key.name} points at a missing file: {rel}"
+        lines = path.read_text().splitlines()
+        assert line <= len(lines), f"{rel}#L{line} is past the end of the file"
+        src = lines[line - 1]
+        if not src.strip():
+            problems.append(f"{rel}#L{line} is a blank line (label: {label})")
+            continue
+        # A label may name several things - "Board._behavioural", or a row that
+        # lists place / revalidate / for_model. It is correct if the anchor sits
+        # on ANY of them; only flag it when none match.
+        hits, misses = [], []
+        for name in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", label):
+            defined = [i + 1 for i, l in enumerate(lines)
+                       if re.match(rf"^\s*(?:def|class)\s+{re.escape(name)}\b", l)
+                       or re.match(rf"^{re.escape(name)}\s*[:=]", l)]
+            if not defined:
+                continue
+            (hits if line in defined else misses).append((name, defined[0]))
+        if misses and not hits:
+            name, at = misses[0]
+            problems.append(f"{rel}#L{line} labelled {name!r}, which is at L{at}")
+    assert not problems, "stale answer-key anchors:\n  " + "\n  ".join(problems)
