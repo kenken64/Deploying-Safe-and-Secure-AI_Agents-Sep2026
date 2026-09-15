@@ -5,7 +5,8 @@
     <h2>Walkthrough</h2>
     <p class="sub">In order. Each one: see the problem, then fix it.</p>
     <ul class="toc">
-      {% for i in items %}<li><a href="/tutorial/{{ i.slug }}">{{ i.title }}</a></li>{% endfor %}
+      {% for i in items %}<li><a href="/tutorial/{{ i.slug }}">{{ i.title }}</a>{% if i.attacks %}
+        <span class="covers">{% for a in i.attacks %}{{ a }}{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}</li>{% endfor %}
     </ul>
   </div>
   <div>

@@ -34,11 +34,11 @@
     <p class="sub">One click each. Every one names the control that closes it.</p>
     {% for a in attacks %}
     <div class="attack">
-      <button onclick="runAttack('{{ a.id }}')">{{ a.id|upper }}</button>
+      <button data-attack="{{ a.id }}" onclick="runAttack('{{ a.id }}')">{{ a.id|upper }}</button>
       <div class="meta"><b><span class="theme {{ a.theme }}">{{ a.theme }}</span> {{ a.name }}</b>
         <span>surface {{ a.surface }} &middot; {{ a.entry_point }} &rarr; {{ a.stage }} &rarr; {{ a.impact }}</span><br>
         <span>fix: {% for c in a.closed_by %}<span class="pill">{{ c }}</span>{% endfor %}
-        <a href="/tutorial/{{ a.tutorial }}">step-by-step &rarr;</a></span>
+        <a href="/tutorial/{{ a.tutorial }}">{{ a.tutorial.split('-')[0] }} step-by-step &rarr;</a></span>
       </div>
     </div>
     {% endfor %}
@@ -95,7 +95,9 @@
       <label class="ctl {% if c.on %}on{% endif %} {% if c.locked %}locked{% endif %}"
              data-key="{{ c.key }}">
         <input type="checkbox" style="width:auto" {% if c.on %}checked{% endif %}
-               onchange="toggle('{{ c.key }}', this.checked)">
+               {% if c.locked %}disabled
+               title="Day 1 control - on for all of Day 2, that is the premise"
+               {% endif %}onchange="toggle('{{ c.key }}', this.checked)">
         <span class="k">{{ c.key }}</span>
         <span>{{ c.label }}</span>
         <span class="blk">{% if c.locked %}day 1{% else %}block {{ c.block }}{% endif %}</span>
@@ -165,15 +167,41 @@ async function send(){
     body:JSON.stringify({text})})).json();
   chat.removeChild(chat.lastChild); add('agent', d.reply||'(no reply)'); paint(d.board);
 }
+let attackRunning = false;
+function attackButtons(){ return document.querySelectorAll('.attack button'); }
 async function runAttack(id){
+  // run_one() reseeds the DB and clears the board, so two at once corrupt each
+  // other. The server refuses the overlap too; this stops it being sent at all.
+  if(attackRunning) return;
+  attackRunning = true;
+  attackButtons().forEach(b => b.disabled = true);
+  const btn = document.querySelector(`.attack button[data-attack="${id}"]`);
+  const label = btn ? btn.textContent : id.toUpperCase();
+  if(btn) btn.textContent = '...';
   add('sys','running attack '+id.toUpperCase()+' ...');
-  const d = await (await fetch('/api/attack/'+id,{method:'POST'})).json();
-  (d.transcript||[]).forEach(t => {
-    const cls = t.kind==='user'?'user':(t.kind==='agent'?'agent':(t.kind==='why'?'why':'sys'));
-    add(cls, (cls==='user'||cls==='agent'?'':(t.kind==='why'?'why: ':t.kind+': '))+t.text);
-  });
-  add('sys', d.landed ? 'ATTACK LANDED' : 'attack stopped');
-  paint(d.board);
+  try{
+    const res = await fetch('/api/attack/'+id,{method:'POST'});
+    const d = await res.json();
+    // A failed run must never read as a pass: `d.landed` is undefined on an
+    // error response, and undefined is falsy, which used to print "attack
+    // stopped" over the top of a 500.
+    if(!res.ok || d.error){
+      add('sys','COULD NOT RUN '+id.toUpperCase()+' - '+(d.error||('HTTP '+res.status)));
+      return;
+    }
+    (d.transcript||[]).forEach(t => {
+      const cls = t.kind==='user'?'user':(t.kind==='agent'?'agent':(t.kind==='why'?'why':'sys'));
+      add(cls, (cls==='user'||cls==='agent'?'':(t.kind==='why'?'why: ':t.kind+': '))+t.text);
+    });
+    add('sys', d.landed ? 'ATTACK LANDED' : 'attack stopped');
+    paint(d.board);
+  }catch(e){
+    add('sys','COULD NOT RUN '+id.toUpperCase()+' - '+e);
+  }finally{
+    attackRunning = false;
+    attackButtons().forEach(b => b.disabled = false);
+    if(btn) btn.textContent = label;
+  }
 }
 async function decide(id, approve){
   const d = await (await fetch('/api/approve',{method:'POST',
@@ -181,9 +209,19 @@ async function decide(id, approve){
   add('sys','approval '+id+': '+d.status); paint(d.board);
 }
 async function toggle(key,on){
-  await fetch('/api/controls',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({key,on})});
-  document.querySelector(`[data-key="${key}"]`).classList.toggle('on', on);
+  const res = await fetch('/api/controls',{method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify({key,on})});
+  const d = await res.json();
+  if(d.refused) add('sys', d.refused);
+  // Repaint every row from the authoritative list, so a refused or failed write
+  // can never leave the tick and the green border disagreeing with the server.
+  (d.controls||[]).forEach(c => {
+    const row = document.querySelector(`[data-key="${c.key}"]`);
+    if(!row) return;
+    row.classList.toggle('on', c.on);
+    const box = row.querySelector('input[type=checkbox]');
+    if(box) box.checked = c.on;
+  });
 }
 async function profile(name){
   await fetch('/api/controls',{method:'POST',headers:{'Content-Type':'application/json'},

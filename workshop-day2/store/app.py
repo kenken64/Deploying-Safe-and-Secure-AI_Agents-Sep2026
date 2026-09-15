@@ -12,6 +12,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import threading
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -145,14 +147,31 @@ def console(request: Request):
     })
 
 
-@app.get("/tutorial", response_class=HTMLResponse)
-def tutorial_index(request: Request):
+def _tutorial_items() -> list[dict]:
+    """The sidebar list, each entry carrying the attacks it explains.
+
+    Tutorial numbers run as ONE sequence across both days (v00-v07 is Day 1,
+    v08-v15 is Day 2) while attack ids restart each day (a1-a7, then b1-b8). On
+    Day 1 six of seven happen to line up - a1/v01, a2/v02 - so the room learns to
+    expect a match, and then Day 2 has b1 in v11 and b2 in v08. They cannot be
+    renumbered into agreement: v11 covers two attacks and v13 covers none. So say
+    which is which, right where the two numbers sit next to each other.
+    """
     items = []
     for path in sorted((ROOT / "tutorials").glob("*.md")):
-        title = _first_heading(path)
-        items.append({"slug": path.stem, "title": title})
+        slug = path.stem
+        items.append({
+            "slug": slug, "title": _first_heading(path),
+            "attacks": [a.id for a in ATTACKS.values() if a.tutorial == slug],
+        })
+    return items
+
+
+@app.get("/tutorial", response_class=HTMLResponse)
+def tutorial_index(request: Request):
     return templates.TemplateResponse(request, "tutorials.html", {
-        "items": items, "body": None, "title": "Tutorials", "badge": model_badge()})
+        "items": _tutorial_items(), "body": None, "title": "Tutorials",
+        "badge": model_badge()})
 
 
 ANSWER_KEY = ROOT / "ANSWER-KEY.md"
@@ -230,10 +249,8 @@ def tutorial(request: Request, slug: str):
     path = ROOT / "tutorials" / f"{slug}.md"
     if not path.exists():
         return RedirectResponse("/tutorial")
-    items = [{"slug": p.stem, "title": _first_heading(p)}
-             for p in sorted((ROOT / "tutorials").glob("*.md"))]
     return templates.TemplateResponse(request, "tutorials.html", {
-        "items": items,
+        "items": _tutorial_items(),
         "body": _markdown(path.read_text(encoding="utf-8")),
         "title": _first_heading(path), "slug": slug, "badge": model_badge(),
         "lab": lab_for(slug)})
@@ -255,12 +272,23 @@ def api_board():
 
 @app.post("/api/controls")
 async def api_controls(request: Request):
+    """Profiles may set anything. A single toggle may not touch a LOCKED control.
+
+    Day 2 starts where Day 1 ended and the Day 1 edge stays on - that is the
+    premise of the whole day, so it cannot be a click away from being switched
+    off. The checkbox is disabled in the template; this is the half that holds
+    when something calls the API directly.
+    """
     payload = await request.json()
     if profile := payload.get("profile"):
         settings.apply_profile(profile)
+    refused = None
     if (key := payload.get("key")) in CONTROLS:
-        settings.set(key, bool(payload.get("on")))
-    return JSONResponse({"controls": controls_state()})
+        if CONTROLS[key]["locked"]:
+            refused = f"{key} is a Day 1 control and stays on for all of Day 2"
+        else:
+            settings.set(key, bool(payload.get("on")))
+    return JSONResponse({"controls": controls_state(), "refused": refused})
 
 
 @app.post("/api/model")
@@ -288,11 +316,25 @@ async def api_signin(request: Request):
     return JSONResponse({"signed_in": SIGNED_IN["customer_id"]})
 
 
+#: run_one() reseeds the database and clears the board before it starts, so two
+#: overlapping runs corrupt each other's results - and SQLite raises on the
+#: reseed. One at a time; a second click is told to wait rather than served a 500.
+_ATTACK_LOCK = threading.Lock()
+
+
 @app.post("/api/attack/{attack_id}")
 def api_attack(attack_id: str):
     if attack_id not in ATTACKS:
-        return JSONResponse({"error": "unknown attack"}, status_code=404)
-    outcome = run_one(ATTACKS[attack_id], verbose=False)
+        return JSONResponse({"error": f"unknown attack {attack_id!r}"}, status_code=404)
+    if not _ATTACK_LOCK.acquire(blocking=False):
+        return JSONResponse({"error": "an attack is already running - wait for it "
+                                      "to finish"}, status_code=409)
+    try:
+        outcome = run_one(ATTACKS[attack_id], verbose=False)
+    except Exception as exc:                       # a broken lab must not look like a pass
+        return JSONResponse({"error": f"{type(exc).__name__}: {exc}"}, status_code=500)
+    finally:
+        _ATTACK_LOCK.release()
     return JSONResponse({**outcome, "board": board_state()})
 
 
