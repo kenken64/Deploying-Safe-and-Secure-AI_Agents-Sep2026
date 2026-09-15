@@ -132,6 +132,25 @@ class MockLLM:
                 "sql": "SELECT * FROM orders"}), tokens=160,
                 model="mock", rationale=self._why(found, ctx, "5 loop"))
 
+        # --- 5a. the same loop, walked ONE BY ONE through the narrow tools ---------------
+        # Day 1 took the blank cheque away, so "every order at once" can no longer
+        # be expressed. It did not take away "every order, one at a time" - and a
+        # steered model will simply walk them. Every call is authorised, every call
+        # is legitimate, every call is cheap. The bill is the only damage, which is
+        # the whole of block 10.  (Day 2, slide 45)
+        if "do_loop" in found:
+            seen_ids = list(dict.fromkeys(f"ORD-{d}" for d in ORDER_RE.findall(ctx)))
+            for oid in seen_ids:
+                if "get_order" in available and not self._did(already, "get_order", oid):
+                    return Completion(tool_call=ToolCall("get_order", {"order_id": oid}),
+                        tokens=120, model="mock",
+                        rationale=f"rule 5a loop one-by-one; {oid} not fetched yet this turn")
+            for url in list(dict.fromkeys(URL_RE.findall(ctx))):
+                if "track_shipment" in available and not self._did(already, "track_shipment", url):
+                    return Completion(tool_call=ToolCall("track_shipment", {"url": url}),
+                        tokens=120, model="mock",
+                        rationale=f"rule 5a loop one-by-one; polling {url[-16:]} again")
+
         # --- 5b. anything that looks like a tracking URL gets fetched --------------------
         # Surface 5. The model picked this URL out of its context. It has no way to
         # know whether the context was written by you or by an attacker.
