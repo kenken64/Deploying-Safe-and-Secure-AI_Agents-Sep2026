@@ -81,6 +81,44 @@ def test_untrusted_content_never_reaches_a_trusted_field():
         assert c["origin"] not in ("operator",)
 
 
+@NEEDS_A_DETERMINISTIC_MODEL
+def test_the_split_alone_closes_b2_and_alone_does_not_close_b1_or_b5():
+    """v08 tells students to prove the split with `attack b2 --control
+    SECURE_STATE_SPLIT`, so that exact claim is the thing under test.
+
+    The second half matters just as much: b1 and b5 ride in on a sub-agent
+    summary that claims origin="operator", which sorting by origin cannot touch.
+    If the split ever starts closing those too, their tutorials are teaching a
+    fix that isn't theirs.
+    """
+    for attack_id, should_stop in (("b2", True), ("b1", False), ("b5", False)):
+        settings.apply_profile("day1-only")
+        settings.set("SECURE_STATE_SPLIT", True)
+        landed = run_one(ATTACKS[attack_id], verbose=False)["landed"]
+        assert landed != should_stop, (
+            f"{attack_id} {'still lands' if should_stop else 'is now stopped'} with only "
+            f"SECURE_STATE_SPLIT on; {attack_id}'s tutorial no longer matches the lab")
+
+
+def test_a_recalled_memory_is_restripped_between_nodes():
+    """The read half of surface 7. The note is already stored and already
+    approved - the write gate is behind us, so containment is all that is left."""
+    settings.apply_profile("day1-only")
+    settings.set("SECURE_STATE_SPLIT", True)
+    db.plant_memory(db.PLANTED_MEMORY, ALICE.customer_id)
+
+    session = graph.new_session(ALICE)
+    recalled = memory.recall(session)
+    assert recalled and "audit-partner.example" in recalled[0].text
+
+    placed = st.place({}, recalled)
+    assert placed["untrusted"], "a recalled note must not land in the trusted zone"
+
+    st.revalidate({"context": placed["context"]}, session)
+    assert "audit-partner.example" not in placed["context"][0]["text"], (
+        "revalidate did not strip the directive on the way past")
+
+
 def test_thread_ids_are_random_and_ownership_is_checked_every_access():
     settings.set("SECURE_THREAD_IDS", True)
     tid = memory.new_thread_id(ALICE)

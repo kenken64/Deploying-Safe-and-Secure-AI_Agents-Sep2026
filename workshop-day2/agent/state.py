@@ -79,10 +79,20 @@ def assert_containment(state: dict, session) -> None:
                          detail="content from retrieval/sub-agents is labelled operator")
         return
 
+    from agent import directives
+
     for c in state.get("context", []):
-        if c["origin"] in TRUSTED_ORIGINS and c.get("label") not in ("system", ""):
+        if c["origin"] not in TRUSTED_ORIGINS or c.get("label") in ("system", ""):
+            continue
+        # A sub-agent summary sitting in the trusted zone is a TRUST problem -
+        # amber on agent_trust, and block 6's job to fix. It only becomes a
+        # CONTAINMENT breach once what it carries is instruction-shaped, which is
+        # the thing this light exists to catch.
+        found = directives.find(c["text"])
+        if found:
             board.light("state_containment", "red",
-                        f"{c['label']} reached a trusted field")
+                        f"{c['label']} reached a trusted field carrying "
+                        + ", ".join(found))
             return
 
 

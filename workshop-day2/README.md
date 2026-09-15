@@ -86,7 +86,7 @@ python kestrel.py attack all --secure       all 8 stopped
 | | Attack | Theme | Entry -> stage -> impact | Closed by | Tutorial |
 |---|---|---|---|---|---|
 | `b1` | The attack I promised you | CONTAIN | poisoned article read by a sub-agent -> trusted state -> order history emailed out | quarantine, state split, guard, HITL | [v11](tutorials/v11-trust-inheritance.md) |
-| `b2` | Poison once, spread everywhere | CONTAIN | untrusted content in a trusted field -> every later node | `SECURE_STATE_SPLIT` | [v08](tutorials/v08-state-poisoning.md) |
+| `b2` | Poison once, spread everywhere | CONTAIN | an approved memory recalled at node 1 -> every later node | `SECURE_STATE_SPLIT` | [v08](tutorials/v08-state-poisoning.md) |
 | `b3` | Thread-ID guessing | CONTAIN | a guessed id -> stored state -> another user's whole conversation | `SECURE_THREAD_IDS` | [v09](tutorials/v09-thread-id-guessing.md) |
 | `b4` | The memory landmine | CONTAIN | a memory the model chose to write -> every future session | `SECURE_MEMORY_WRITES` | [v10](tutorials/v10-memory-landmine.md) |
 | `b5` | Trust inheritance | CONTAIN | least-privileged agent -> most-privileged agent's authority | quarantine, priv-sep | [v11](tutorials/v11-trust-inheritance.md) |

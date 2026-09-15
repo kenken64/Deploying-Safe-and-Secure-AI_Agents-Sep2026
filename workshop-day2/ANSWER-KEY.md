@@ -48,9 +48,11 @@ python kestrel.py attack all --secure   # 8/8 stopped
 
 The payload lands at one node, and the agent carries it to every node after, on the attacker's behalf, free of charge.
 
+It arrives as a **remembered note that is already stored and already approved** - b4 is the write half of this surface (what is allowed to stick); this is the read half, which begins one step later and cannot be helped by anything at the write gate. Note what the carrier is *not*: a retrieved article and a tool result are both Day 1's, already stripped by `SECURE_PROVENANCE` and `SECURE_TOOL_RESULTS` before they reach state. A sub-agent summary reaches state claiming `origin="operator"` (`helpers.py:91`), so sorting by origin cannot touch it - that lie is `b5`'s, and quarantine's. A recalled memory is the one carrier left whose provenance is honest, which is exactly why the split can act on it.
+
 | Before | After | What changed |
 |---|---|---|
-| One flat `context` list — system prompt, user message, retrieved article and sub-agent summary, in arrival order, indistinguishable. | [`state.place`](agent/state.py#L43) sorts by origin into `context` **and** `untrusted`; [`state.revalidate`](agent/state.py#L89) re-checks carried content between nodes; [`state.for_model`](agent/state.py#L131) re-fences on every assembly. | Three moves. **Split** so trust is a schema property, not a convention. **Revalidate** so the payload cannot ride free from node 1 to node 4. **Re-fence on render**, because a tag applied once at the boundary is a tag the attacker only has to survive once. [`assert_containment`](agent/state.py#L62) is the proof. |
+| One flat `context` list — system prompt, user message, retrieved article and sub-agent summary, in arrival order, indistinguishable. | [`state.place`](agent/state.py#L43) sorts by origin into `context` **and** `untrusted`; [`state.revalidate`](agent/state.py#L99) re-checks carried content between nodes; [`state.for_model`](agent/state.py#L141) re-fences on every assembly. | Three moves. **Split** so trust is a schema property, not a convention. **Revalidate** so the payload cannot ride free from node 1 to node 4. **Re-fence on render**, because a tag applied once at the boundary is a tag the attacker only has to survive once. [`assert_containment`](agent/state.py#L62) is the proof. |
 
 **The essence:** when instruction and data share a field, the agent cannot tell them apart. Containment starts at the schema.
 
@@ -143,7 +145,7 @@ Not a breach. A bill. Nothing stolen, no action taken.
 | # | Attack | Theme | Surface | Closed by | Tutorial |
 |---|---|---|---|---|---|
 | b1 | Didn't arrive as input | CONTAIN | 6 → 7 → output | `SECURE_QUARANTINE` `SECURE_STATE_SPLIT` `SECURE_OUTPUT_GUARD` `SECURE_HITL` | [v11](tutorials/v11-trust-inheritance.md) |
-| b2 | Poison once, spread everywhere | CONTAIN | 7 state | `SECURE_STATE_SPLIT` | [v08](tutorials/v08-state-poisoning.md) |
+| b2 | Poison once, spread everywhere | CONTAIN | 7 state (recalled memory) | `SECURE_STATE_SPLIT` | [v08](tutorials/v08-state-poisoning.md) |
 | b3 | Thread-ID guessing | CONTAIN | 7 checkpoints | `SECURE_THREAD_IDS` | [v09](tutorials/v09-thread-id-guessing.md) |
 | b4 | The memory landmine | CONTAIN | 7 long-term memory | `SECURE_MEMORY_WRITES` | [v10](tutorials/v10-memory-landmine.md) |
 | b5 | Trust inheritance | CONTAIN | 6 other agents | `SECURE_QUARANTINE` `SECURE_PRIV_SEP` | [v11](tutorials/v11-trust-inheritance.md) |
